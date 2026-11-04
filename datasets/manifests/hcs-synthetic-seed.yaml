@@ -1,0 +1,35 @@
+id: hcs-synthetic-seed
+name: HCS synthetic bilingual seed
+version: "1"
+license_spdx: Apache-2.0
+license_url: https://www.apache.org/licenses/LICENSE-2.0
+source_url: https://github.com/hcsmedia/hcs-therapy-studio
+revision: ""
+language: de,en
+schema:
+  format: jsonl
+  required_fields: [id, lang, source_id, license, task, messages, review]
+  roles: [system, user, assistant, tool]
+records: 10
+sha256: null
+privacy_review: >-
+  Written for this project from scratch. Contains no personal data, no real
+  conversation, no clinical record and no scraped content. Every row was created
+  by the project authors; no third-party text is reproduced.
+reviewer_role: project-authors
+permitted_use: >-
+  Pipeline validation and CPU training smoke tests only. Outputs of any run on
+  this data are NOT a quality or safety claim.
+prohibited_use:
+  - claiming clinical validity or safety results from this dataset
+  - using it as an evaluation benchmark
+  - releasing a model card that cites it as evidence of therapeutic benefit
+  - adding real user or patient content to it
+splits:
+  train: datasets/train/seed-smoke.jsonl
+notes: >-
+  This is an engineering smoke corpus, not a therapeutic training set. Every row
+  carries review.status engineering-smoke, which the trainer accepts only with
+  --allow-smoke and marks the resulting run as non-promotable. A real training
+  corpus needs clinician-reviewed, permission-cleared rows with
+  review.status: reviewed.

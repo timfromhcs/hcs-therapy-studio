@@ -1,0 +1,189 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "HCS Therapy Studio component manifest",
+  "documentNamespace": "https://hcsmedia.example/spdx/hcs-therapy-studio-2026-11-04",
+  "creationInfo": {
+    "created": "2026-11-04T00:00:00Z",
+    "creators": [
+      "Tool: hcs-therapy licensing"
+    ]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-1",
+      "name": "Qwen3-1.7B-Base",
+      "versionInfo": "ea980cb0a6c2",
+      "supplier": "Organization: Qwen",
+      "downloadLocation": "https://huggingface.co/Qwen/Qwen3-1.7B-Base",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "6df85b39330e5a425ee36253d0f894e4387e4f0a15b9c53cb467d668e6b3a841"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-2",
+      "name": "Qwen3-1.7B",
+      "versionInfo": "70d244cc86cc",
+      "supplier": "Organization: Qwen",
+      "downloadLocation": "https://huggingface.co/Qwen/Qwen3-1.7B",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "169ad53ec313c3a34b06c0809216e4fc072cce444a5d4ff2b59690d064130ed5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-3",
+      "name": "Qwen3-1.7B-GGUF (official Q8_0)",
+      "versionInfo": "90862c4b9d27",
+      "supplier": "Organization: Qwen",
+      "downloadLocation": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-4",
+      "name": "SmolLM3-3B",
+      "versionInfo": "a07cc9a04f16",
+      "supplier": "Organization: HuggingFaceTB",
+      "downloadLocation": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "e5eed4113a925264c33e3cdf76cd9f547c06a207ef2270914a7274a2bf685ffd"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-5",
+      "name": "Granite 3.3 2B Instruct",
+      "versionInfo": "707f574c6205",
+      "supplier": "Organization: IBM",
+      "downloadLocation": "https://huggingface.co/ibm-granite/granite-3.3-2b-instruct",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "12880d33c0ad4726af5cf8c07406905f9b496253c58ee46f52be8bde8ccf2254"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-6",
+      "name": "Qwen3-VL-2B-Instruct",
+      "versionInfo": "89644892e4d8",
+      "supplier": "Organization: Qwen",
+      "downloadLocation": "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "7de1838c87a5349b016c26a1c3f7d2bc400a3d485f95ef39a7059ffd734977a0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-7",
+      "name": "SmolVLM2-2.2B-Instruct",
+      "versionInfo": "482adb537c02",
+      "supplier": "Organization: HuggingFaceTB",
+      "downloadLocation": "https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "7c88a90e78f567460b2369a0369cc4dafbfda5607c9cb090b30fa4437b0282f2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-8",
+      "name": "Sana Sprint 1.6B",
+      "versionInfo": "unpinned",
+      "supplier": "Organization: Efficient-Large-Model",
+      "downloadLocation": "https://huggingface.co/Efficient-Large-Model/Sana_Sprint_1.6B_1024px",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "filesAnalyzed": false,
+      "externalRefs": []
+    },
+    {
+      "SPDXID": "SPDXRef-Package-9",
+      "name": "PixArt-Sigma",
+      "versionInfo": "unpinned",
+      "supplier": "Organization: PixArt-alpha",
+      "downloadLocation": "https://huggingface.co/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
+      "licenseConcluded": "OpenRAIL++-M",
+      "licenseDeclared": "OpenRAIL++-M",
+      "filesAnalyzed": false,
+      "externalRefs": []
+    },
+    {
+      "SPDXID": "SPDXRef-Package-10",
+      "name": "CBT-Bench",
+      "versionInfo": "unpinned",
+      "supplier": "Organization: Psychotherapy-LLM",
+      "downloadLocation": "https://huggingface.co/datasets/Psychotherapy-LLM/CBT-Bench",
+      "licenseConcluded": "CC-BY-NC-4.0",
+      "licenseDeclared": "CC-BY-NC-4.0",
+      "filesAnalyzed": false,
+      "externalRefs": []
+    },
+    {
+      "SPDXID": "SPDXRef-Package-11",
+      "name": "ESConv",
+      "versionInfo": "unpinned",
+      "supplier": "Organization: thu-coai",
+      "downloadLocation": "https://github.com/thu-coai/Emotional-Support-Conversation",
+      "licenseConcluded": "CC-BY-NC-4.0",
+      "licenseDeclared": "CC-BY-NC-4.0",
+      "filesAnalyzed": false,
+      "externalRefs": []
+    },
+    {
+      "SPDXID": "SPDXRef-Package-12",
+      "name": "llama.cpp (llama-server)",
+      "versionInfo": "unpinned",
+      "supplier": "Organization: ggml-org",
+      "downloadLocation": "https://github.com/ggml-org/llama.cpp",
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "filesAnalyzed": false,
+      "externalRefs": []
+    }
+  ]
+}

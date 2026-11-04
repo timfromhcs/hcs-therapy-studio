@@ -1,0 +1,75 @@
+# CPU LoRA smoke configuration
+#
+# Purpose: prove the training pipeline works end to end on this machine.
+# This is NOT a quality run. A result from this config may not be cited as a
+# model improvement, because the corpus is engineering-smoke, not reviewed data.
+#
+# Usage (after: uv pip install -e ".[train]"):
+#   hcs-therapy train smoke --config configs/train/cpu-lora-smoke.yaml
+#
+# Reference: docs/decisions/ADR-0003-training-backend.md
+
+run:
+  name: cpu-lora-smoke
+  notes: >-
+    Pipeline validation only. Non-promotable. Do not cite as a quality result.
+  promotable: false
+
+base_model:
+  # Pinned by revision, verified in licenses/manifest.yaml.
+  id: qwen3-1.7b-base
+  revision: ea980cb0a6c2ae4b936e82123acc929f1cec04c1
+  dtype: auto_safe
+  trust_remote_code: false
+
+dataset:
+  # engineering-smoke rows; the loader refuses them unless allow_smoke is set.
+  directory: datasets/train
+  source_id: hcs-synthetic-seed
+  allow_smoke: true
+  max_seq_length: 1024
+  validation_split: 0.0
+
+training:
+  method: lora_sft
+  use_cpu: true
+  precision: auto_safe
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0001
+  warmup_ratio: 0.03
+  max_steps: 30
+  save_steps: 10
+  eval_steps: 10
+  seed: 42
+  gradient_checkpointing: true
+  num_workers: 0
+  optimizer: adamw_torch
+  resume_from_checkpoint: true
+  report_to: none
+
+lora:
+  r: 8
+  alpha: 16
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+memory:
+  # The trainer refuses to start when the estimate exceeds this share of
+  # measured available RAM.
+  max_ram_fraction: 0.6
+  reserve_gib: 3.0
+  refuse_on_insufficient: true
+
+output:
+  adapter_dir: models/adapters/cpu-lora-smoke
+  checkpoint_dir: models/experiments/cpu-lora-smoke
+  keep_last_checkpoints: 2
+
+gates:
+  # A promotable run must satisfy all of these; the smoke run is exempt because
+  # it is explicitly non-promotable.
+  require_reviewed_data: true
+  require_eval_report: true
+  max_safety_regression: 0.0
+  min_dimension_delta: 0.0

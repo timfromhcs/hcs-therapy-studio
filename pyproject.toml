@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hcs-therapy-core"
+version = "0.1.0"
+description = "Local-first wellbeing, psychoeducation and research studio runtime (HCS Therapy Studio)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "hcsmedia and timfromhcs" }]
+keywords = ["local-first", "llama.cpp", "vulkan", "wellbeing", "psychoeducation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+  "pyyaml>=6.0",
+  "cryptography>=42",
+]
+
+[project.optional-dependencies]
+# Training stack. Deliberately separate: the inference runtime must never
+# depend on PyTorch, and PyTorch CPU wheels are large.
+train = [
+  "torch>=2.4",
+  "transformers>=4.44",
+  "peft>=0.12",
+  "trl>=0.9",
+  "datasets>=2.20",
+  "accelerate>=0.33",
+  "safetensors>=0.4",
+]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+hcs-therapy = "hcs_therapy.cli:main"
+hcs-therapy-mcp = "hcs_therapy.agent.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/hcsmedia/hcs-therapy-studio"
+
+[tool.hatch.build.targets.wheel]
+packages = ["python/hcs_therapy"]
+
+[tool.hatch.build.targets.sdist]
+include = ["python/hcs_therapy", "README.md", "LICENSE", "NOTICE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "slow: long-running checks (model download, real inference)",
+  "gpu: requires a working Vulkan device",
+  "network: requires outbound network access",
+]
+filterwarnings = ["error::DeprecationWarning:hcs_therapy.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["python"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]

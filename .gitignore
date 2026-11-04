@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.npm/
+*.tsbuildinfo
+
+# Rust
+target/
+
+# Local runtime / user data (never commit)
+data/
+logs/
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Models and datasets: too large for git, and redistribution is licence-gated.
+models/**/*.gguf
+models/**/*.safetensors
+models/**/*.bin
+models/adapters/**
+models/quantized/**
+models/experiments/**
+datasets/raw/**
+datasets/processed/**
+datasets/train/**
+datasets/holdout/**
+evals/external/**
+evals/holdout/**
+evals/reports/**
+!**/.gitkeep
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key

@@ -1,0 +1,237 @@
+# Licence manifest — every model, dataset, runtime and dataset dependency.
+#
+# Rule: `approved: true` means the repository files were actually inspected:
+# licence file contents checked, gated status checked, revision pinned to a
+# commit SHA, and (where installed) the artifact hash recorded.
+#
+# Reviewed 2026-11-04 via the Hugging Face API plus the raw LICENSE file in each
+# repository. Card badges alone were NOT accepted as evidence.
+version: 1
+reviewed_at: "2026-11-04"
+reviewer: "automated-licence-audit"
+
+assets:
+  - id: qwen3-1.7b-base
+    kind: model
+    name: Qwen3-1.7B-Base
+    publisher: Qwen
+    source_url: https://huggingface.co/Qwen/Qwen3-1.7B-Base
+    revision: ea980cb0a6c2ae4b936e82123acc929f1cec04c1
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    sha256: 6df85b39330e5a425ee36253d0f894e4387e4f0a15b9c53cb467d668e6b3a841
+    redistribution: permitted_subject_to_license
+    commercial_use: permitted_subject_to_license
+    modification: permitted_subject_to_license
+    upstream_notice_required: true
+    components: [tokenizer.json, vocab.json, merges.txt, config.json]
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
+    notes: >-
+      Apache License 2.0 text verified in the repository (11,343 bytes, header
+      "Apache License"). Repository is ungated. Weight sha256 is the LFS object
+      id reported by the Hub API for model.safetensors.
+
+  - id: qwen3-1.7b-instruct
+    kind: model
+    name: Qwen3-1.7B
+    publisher: Qwen
+    source_url: https://huggingface.co/Qwen/Qwen3-1.7B
+    revision: 70d244cc86ccca08cf5af4e1e306ecf908b1ad5e
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    sha256: 169ad53ec313c3a34b06c0809216e4fc072cce444a5d4ff2b59690d064130ed5
+    redistribution: permitted_subject_to_license
+    commercial_use: permitted_subject_to_license
+    modification: permitted_subject_to_license
+    upstream_notice_required: true
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
+    notes: >-
+      Baseline only. Two shards; the recorded sha256 is shard 1 of 2. Ungated,
+      Apache License text verified in the repository.
+
+  - id: qwen3-1.7b-gguf
+    kind: model
+    name: Qwen3-1.7B-GGUF (official Q8_0)
+    publisher: Qwen
+    source_url: https://huggingface.co/Qwen/Qwen3-1.7B-GGUF
+    revision: 90862c4b9d2787eaed51d12237eafdfe7c5f6077
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    sha256: 061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a
+    redistribution: permitted_subject_to_license
+    commercial_use: permitted_subject_to_license
+    modification: permitted_subject_to_license
+    upstream_notice_required: true
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
+    notes: >-
+      The official Qwen GGUF repository ships Q8_0 only (1,834,426,016 bytes).
+      There is no official Q4_K_M, so the default artifact is Q8_0 and any
+      smaller quantisation requires a separately audited third-party repo.
+      Apache License text verified in the repository.
+
+  - id: smollm3-3b
+    kind: model
+    name: SmolLM3-3B
+    publisher: HuggingFaceTB
+    source_url: https://huggingface.co/HuggingFaceTB/SmolLM3-3B
+    revision: a07cc9a04f16550a088caea529712d1d335b0ac1
+    sha256: e5eed4113a925264c33e3cdf76cd9f547c06a207ef2270914a7274a2bf685ffd
+    checksum_file: model-00001-of-00002.safetensors
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    redistribution: permitted_subject_to_license
+    commercial_use: permitted_subject_to_license
+    modification: permitted_subject_to_license
+    upstream_notice_required: true
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
+    notes: Challenger for the common benchmark suite. Card declares apache-2.0, repository ungated.
+
+  - id: granite-3.3-2b-instruct
+    kind: model
+    name: Granite 3.3 2B Instruct
+    publisher: IBM
+    source_url: https://huggingface.co/ibm-granite/granite-3.3-2b-instruct
+    revision: 707f574c62054322f6b5b04b6d075f0a8f05e0f0
+    sha256: 12880d33c0ad4726af5cf8c07406905f9b496253c58ee46f52be8bde8ccf2254
+    checksum_file: model-00001-of-00002.safetensors
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    redistribution: permitted_subject_to_license
+    commercial_use: permitted_subject_to_license
+    modification: permitted_subject_to_license
+    upstream_notice_required: true
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
+    notes: Challenger, German-capable per model card. Ungated.
+
+  - id: qwen3-vl-2b-instruct
+    kind: model
+    name: Qwen3-VL-2B-Instruct
+    publisher: Qwen
+    source_url: https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct
+    revision: 89644892e4d85e24eaac8bacfd4f463576704203
+    sha256: 7de1838c87a5349b016c26a1c3f7d2bc400a3d485f95ef39a7059ffd734977a0
+    checksum_file: model.safetensors
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    redistribution: permitted_subject_to_license
+    commercial_use: permitted_subject_to_license
+    modification: permitted_subject_to_license
+    upstream_notice_required: true
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
+    notes: >-
+      Vision candidate. Licence cleared, but runtime export to GGUF/ONNX is not
+      yet proven on this device; no VLM feature may claim support until it is.
+
+  - id: smolvlm2-2.2b-instruct
+    kind: model
+    name: SmolVLM2-2.2B-Instruct
+    publisher: HuggingFaceTB
+    source_url: https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct
+    revision: 482adb537c021c86670beed01cd58990d01e72e4
+    sha256: 7c88a90e78f567460b2369a0369cc4dafbfda5607c9cb090b30fa4437b0282f2
+    checksum_file: model-00001-of-00002.safetensors
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    redistribution: permitted_subject_to_license
+    commercial_use: permitted_subject_to_license
+    modification: permitted_subject_to_license
+    upstream_notice_required: true
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
+    notes: Vision alternative. Licence cleared, runtime unproven.
+
+  - id: sana-sprint-1.6b
+    kind: model
+    name: Sana Sprint 1.6B
+    publisher: Efficient-Large-Model
+    source_url: https://huggingface.co/Efficient-Large-Model/Sana_Sprint_1.6B_1024px
+    revision: ""
+    license_spdx: Apache-2.0
+    license_url: https://www.apache.org/licenses/LICENSE-2.0
+    redistribution: unknown_component_terms
+    commercial_use: unknown_component_terms
+    modification: unknown_component_terms
+    upstream_notice_required: true
+    components: [Gemma-2-2B-IT text encoder]
+    approved: false
+    notes: >-
+      Top-level Apache-2.0 but the fixed Gemma-2 text encoder carries separate
+      terms. Do not bundle without a full component review.
+
+  - id: pixart-sigma
+    kind: model
+    name: PixArt-Sigma
+    publisher: PixArt-alpha
+    source_url: https://huggingface.co/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS
+    revision: ""
+    license_spdx: OpenRAIL++-M
+    license_url: https://huggingface.co/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS
+    redistribution: restricted
+    commercial_use: restricted
+    modification: restricted
+    upstream_notice_required: true
+    approved: false
+    notes: Does not pass the strict permissive filter.
+
+  - id: cbt-bench
+    kind: benchmark
+    name: CBT-Bench
+    publisher: Psychotherapy-LLM
+    source_url: https://huggingface.co/datasets/Psychotherapy-LLM/CBT-Bench
+    revision: ""
+    license_spdx: CC-BY-NC-4.0
+    license_url: https://creativecommons.org/licenses/by-nc/4.0/
+    redistribution: prohibited_non_commercial
+    commercial_use: prohibited
+    modification: prohibited_non_commercial
+    upstream_notice_required: true
+    approved: false
+    notes: >-
+      Evaluation only, and only where the licence permits. Never bundled, never
+      used as training data, never shipped in a commercial build.
+
+  - id: esconv
+    kind: dataset
+    name: ESConv
+    publisher: thu-coai
+    source_url: https://github.com/thu-coai/Emotional-Support-Conversation
+    revision: ""
+    license_spdx: CC-BY-NC-4.0
+    license_url: https://creativecommons.org/licenses/by-nc/4.0/
+    redistribution: prohibited_non_commercial
+    commercial_use: prohibited
+    modification: prohibited_non_commercial
+    upstream_notice_required: true
+    approved: false
+    notes: Upstream states academic-research-only. Excluded from any distributable corpus.
+
+  - id: llama-cpp-runtime
+    kind: runtime
+    name: llama.cpp (llama-server)
+    publisher: ggml-org
+    source_url: https://github.com/ggml-org/llama.cpp
+    revision: ""
+    license_spdx: MIT
+    license_url: https://github.com/ggml-org/llama.cpp/blob/master/LICENSE
+    redistribution: permitted
+    commercial_use: permitted
+    modification: permitted
+    upstream_notice_required: true
+    approved: false
+    notes: >-
+      Placeholder until a specific build is pinned for the desktop bundle. The
+      runtime licence grants nothing for model weights; those are listed
+      separately above.
