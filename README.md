@@ -76,8 +76,11 @@ any other browser origin.
 
 ## Implemented
 
+![Overview screen](docs/screenshots/ui-home-desktop.png)
+
 | Area | State | Evidence |
 |---|---|---|
+| Static product UI (8 screens, DE/EN) | implemented | `apps/web`, screenshots in `docs/screenshots/` |
 | Hardware/Vulkan detection through the real loader | implemented | `hcs-therapy doctor --json`, `tests/test_hardware_profiles.py` |
 | Compute-profile selection with explicit budgets and reasons | implemented | same |
 | Resumable, hash-verified model downloads with atomic promotion | implemented | `tests/test_manifests_downloads.py` |
@@ -91,17 +94,22 @@ any other browser origin.
 | MCP server over stdio (JSON-RPC 2.0) | implemented | same |
 | Dataset gating: provenance, PII, dedup, review status, train/eval leakage | implemented | `tests/test_datasets.py` |
 | Evaluation harness with deterministic scorers and A/B regression compare | implemented | `tests/test_evals.py` |
+| CPU LoRA training pipeline with memory gate, checkpoints and resume | implemented pipe, not a quality result | `tests/test_train.py`, `status.md` §M4 |
 | SVG sanitiser + constrained scene renderer (text-to-layout) | implemented | `tests/test_svg.py` |
 | Attribution/SBOM generation from manifests | implemented | `hcs-therapy license generate` |
 
 ## Experimental
 
-- **CPU LoRA training** — configuration, dataset gates and smoke-run plumbing
-  exist; PyTorch is an optional extra and no training run is claimed here. Full
-  fine-tuning is out of scope for this device.
-- **Browser/WebGPU edition** — not implemented yet. Static-client design is
-  documented; nothing in the browser is validated and no feature-parity claim is
-  made.
+- **Local text inference** — every layer is implemented and tested, but no
+  `llama-server` binary is pinned and no GGUF model has been run. `runtime smoke`
+  has **never** executed here, so there is no tokens/second figure and no claim
+  that Vulkan inference works on this machine.
+- **CPU LoRA training** — the pipeline ran for real on a 0.6B base: 10 steps,
+  checkpoints, adapter, resume from checkpoint-10. It is marked non-promotable
+  because the corpus is 10 `engineering-smoke` rows. Full fine-tuning is out of
+  scope for this device.
+- **Browser/WebGPU edition** — not implemented. Static-client design is documented
+  (ADR-007); nothing in the browser is validated beyond the desktop-hosted client.
 - **Vision-language** — licences cleared for Qwen3-VL-2B and SmolVLM2, but no
   runtime export has been proven on this hardware. The UI must not present a VLM
   until a real smoke test passes.
@@ -146,15 +154,36 @@ A system prompt is not safety. The layers that actually run:
 ## Repository map
 
 ```
-python/hcs_therapy/     runtime package (hardware, profiles, models, runtime, safety, agent, evals)
-python/hcs_therapy/     CLI: hcs-therapy, MCP: hcs-therapy-mcp
-tests/                  pytest suite
-models/manifests/       pinned model manifests
-datasets/               dataset manifests + smoke corpus
+python/hcs_therapy/     runtime package (hardware, profiles, models, runtime, safety, agent, evals, train)
+tests/                  225 pytest tests
+apps/web/               React + Vite static client (8 screens, DE/EN)
+models/manifests/       pinned model manifests (GGUF + training base)
+datasets/               dataset manifests + engineering-smoke corpus
 licenses/manifest.yaml  licence register (verified upstream revisions)
-docs/                   architecture, safety, privacy, ADRs
+docs/                   architecture, safety, privacy, ADRs, screenshots
 evals/                  local suites and report output
+configs/train/          CPU LoRA configs (1.7B and 0.6B pipeline smoke)
 ```
+
+## Product UI
+
+The client is a static app that talks only to `127.0.0.1`. Start the API, then:
+
+```powershell
+cd apps/web
+npm install
+npm run dev    # http://localhost:5173
+```
+
+Paste the token from the CLI into **Einstellungen** and save. Screens:
+Übersicht, Gespräch, Tagebuch, Reflexion, Studio, Labor, Sicherheit,
+Einstellungen.
+
+![Crisis path in the conversation screen](docs/screenshots/ui-chat-crisis-desktop.png)
+
+The screenshot above is the deterministic crisis path: the model is bypassed,
+verified numbers for the selected region are shown, and the message itself stays
+plain text so it survives any renderer failure.
 
 ## Commands
 

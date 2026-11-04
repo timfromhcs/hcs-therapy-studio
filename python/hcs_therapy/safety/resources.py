@@ -197,39 +197,33 @@ def normalise_number(text: str) -> str:
 
 
 def render(region: str | None, locale: str = "de") -> str:
-    """Plain-text resource block for a deterministic crisis response."""
+    """Plain-text resource block for a deterministic crisis response.
+
+    Deliberately plain: a crisis message must not depend on a markdown renderer,
+    a stylesheet, or a component that might fail to load.
+    """
     pack = resolve(region)
     if locale.startswith("en"):
-        lines = [
-            "**Immediate help**",
-            f"- {pack.emergency.name}: {pack.emergency.contact}",
-        ]
+        lines = ["Immediate help:", f"· {pack.emergency.name}: {pack.emergency.contact}"]
         if pack.lines:
-            lines.extend(f"- {r.name}: {r.contact} ({r.hours})" for r in pack.lines)
+            lines.extend(f"· {r.name}: {r.contact} ({r.hours})" for r in pack.lines)
         if pack is UNKNOWN:
             lines.append(
-                "- If you are outside these regions, dial your local emergency number "
-                "(112 in the EU)."
+                "· Outside these regions, dial your local emergency number (112 in the EU)."
             )
         lines.append("")
         lines.append("This app is not a crisis service and cannot send help to you.")
         return "\n".join(lines)
 
-    lines = [
-        "**Sofort erreichbar**",
-        f"- {pack.emergency.name}: {pack.emergency.contact}",
-    ]
+    lines = ["Sofort erreichbar:", f"· {pack.emergency.name}: {pack.emergency.contact}"]
     if pack.lines:
-        lines.extend(f"- {r.name}: {r.contact} ({r.hours})" for r in pack.lines)
+        lines.extend(f"· {r.name}: {r.contact} ({r.hours})" for r in pack.lines)
     if pack is UNKNOWN:
         lines.append(
-            "- Außerhalb dieser Regionen: die örtliche Notrufnummer wählen "
-            "(in der EU die 112)."
+            "· Außerhalb dieser Regionen: die örtliche Notrufnummer wählen (in der EU die 112)."
         )
     lines.append("")
-    lines.append(
-        "Diese App ist kein Krisendienst und kann keine Hilfe zu dir schicken."
-    )
+    lines.append("Diese App ist kein Krisendienst und kann keine Hilfe zu dir schicken.")
     return "\n".join(lines)
 
 

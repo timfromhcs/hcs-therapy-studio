@@ -27,6 +27,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from .. import __version__
 from ..hardware import HardwareReport, detect
@@ -176,6 +177,7 @@ ROUTES: list[Route] = [
     ("POST", re.compile(r"^/api/journal$"), "journal_create"),
     ("DELETE", re.compile(r"^/api/journal/(?P<id>[A-Za-z0-9_]+)$"), "journal_delete"),
     ("POST", re.compile(r"^/api/data/export$"), "data_export"),
+    ("POST", re.compile(r"^/api/data/wipe$"), "data_wipe"),
     ("GET", re.compile(r"^/api/runtime/status$"), "runtime_status"),
     ("GET", re.compile(r"^/v1/models$"), "openai_models"),
     ("POST", re.compile(r"^/v1/chat/completions$"), "chat_completions"),
@@ -196,7 +198,7 @@ def make_handler(state: StudioState) -> type[BaseHTTPRequestHandler]:
             origin = self.headers.get("Origin")
             if not origin:
                 return None
-            if origin in state.config.origins:
+            if origin_allowed(origin, state.config.origins):
                 return origin
             return None
 
@@ -312,6 +314,25 @@ def make_handler(state: StudioState) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+def origin_allowed(origin: str, allow_list: tuple[str, ...]) -> bool:
+    """Loopback origins on any port, plus explicit remote/tauri entries.
+
+    A strict string match breaks every local dev server whose port is dynamic
+    (Vite picks 4173 for preview, 5173 for dev, 5174 if the first is taken). The
+    security boundary is the bearer token and the loopback bind, not the port
+    number — but a remote origin must still be rejected.
+    """
+    if origin in allow_list:
+        return True
+    try:
+        parts = urlsplit(origin)
+    except ValueError:
+        return False
+    if parts.scheme not in ("http", "https"):
+        return False
+    return (parts.hostname or "").lower() in {"localhost", "127.0.0.1", "::1"}
+
+
 def _require_confirmation(body: dict, action: str) -> None:
     if body.get("confirmed") is not True:
         raise PermissionError(
@@ -396,8 +417,19 @@ def _data_export(self: StudioState, body: dict, params: dict) -> dict:
     return {"path": str(target)}
 
 
+def _data_wipe(self: StudioState, body: dict, params: dict) -> dict:
+    """Delete all user content. Destructive, so it needs explicit confirmation."""
+    _require_confirmation(body, "deleting all content")
+    counts = self.db.wipe_user_content()
+    self.db.audit("data_wipe", "ok", summary=json.dumps(counts))
+    return {"deleted": counts}
+
+
 def _runtime_status(self: StudioState, body: dict, params: dict) -> dict:
-    return {"backend": self.backend.status().__dict__, "profile": self.profile.to_dict() if self.profile else None}
+    return {
+        "backend": self.backend.status().__dict__,
+        "profile": self.profile.to_dict() if self.profile else None,
+    }
 
 
 def _openai_models(self: StudioState, body: dict, params: dict) -> dict:
@@ -542,6 +574,7 @@ def attach(state_cls: type[StudioState]) -> None:
         _journal_create,
         _journal_delete,
         _data_export,
+        _data_wipe,
         _runtime_status,
         _openai_models,
         _chat_completions,
@@ -550,6 +583,25 @@ def attach(state_cls: type[StudioState]) -> None:
 
 
 attach(StudioState)
+
+
+class StudioHTTPServer(ThreadingHTTPServer):
+    """Server that treats a client hanging up as normal, not as an error.
+
+    A browser cancels in-flight requests constantly (navigation, abort). Without
+    this, every cancel dumps a traceback to the console, which trains users to
+    ignore real errors.
+    """
+
+    daemon_threads = True
+
+    def handle_error(self, request, client_address) -> None:
+        import sys
+
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
 
 
 @dataclass
@@ -593,7 +645,7 @@ def serve(
     )
     state = StudioState(config)
     handler = make_handler(state)
-    httpd = ThreadingHTTPServer((LOOPBACK, port), handler)
+    httpd = StudioHTTPServer((LOOPBACK, port), handler)
     httpd.daemon_threads = True
     thread = threading.Thread(target=httpd.serve_forever, name="hcs-api", daemon=True)
     thread.start()

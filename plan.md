@@ -46,12 +46,15 @@ leakage check, review-status gating, smoke-only classification.
 Remaining: a clinician-reviewed, permission-cleared bilingual corpus. This is a
 human task, not an agent task.
 
-## M4 — CPU LoRA training (scaffolded)
+## M4 — CPU LoRA training (pipeline proven on 0.6B)
 
-Done: gated dataset loading, config, memory estimator, smoke-run planning.
+Done: gated dataset loading, config, memory estimator calibrated against a
+measured run, 10-step and 13-step runs, checkpoint save, resume from
+checkpoint-10, adapter saved, run recorded in SQLite.
 
-Remaining: PyTorch install on the target, 10–30 step run, checkpoint resume
-verification, adapter A/B evaluation.
+Remaining: reviewer-cleared corpus, adapter A/B evaluation against the baseline,
+safety regression report. The 1.7B run was refused by the memory guard on this
+machine and stays refused until memory allows it.
 
 ## M5 — Safety and product behaviour (done for the deterministic layers)
 
@@ -75,9 +78,13 @@ candidates.
 
 Remaining: prove a VLM export/runtime on this device; build the editor UI.
 
-## M8 — Product UI (not started)
+## M8 — Product UI (static client done)
 
-Remaining: React/Vite app, all journeys, visual QA, accessibility gate.
+Done: React/Vite client, 8 screens, DE/EN strings, Loam design system, wired to
+the real local API, browser-verified at 375px and 1440px.
+
+Remaining: Tauri shell, automated visual regression, accessibility audit with a
+screen reader, and the Better Design review tools (blocked by account quota).
 
 ## M9 — Browser/Vercel edition (not started)
 

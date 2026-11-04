@@ -46,3 +46,7 @@ evals/reports/**
 .env.*
 *.pem
 *.key
+
+# Playwright MCP artifacts
+.playwright-mcp/
+

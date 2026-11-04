@@ -1,0 +1,58 @@
+id: qwen3-0.6b-base
+kind: model
+name: Qwen3-0.6B-Base
+publisher: Qwen
+source_url: https://huggingface.co/Qwen/Qwen3-0.6B-Base
+revision: da87bfb608c14b7cf20ba1ce41287e8de496c0cd
+license_spdx: Apache-2.0
+license_url: https://www.apache.org/licenses/LICENSE-2.0
+quantisation: none (bf16 safetensors)
+chat_template: chatml-qwen3
+upstream_notice_required: true
+redistribution: permitted_subject_to_license
+commercial_use: permitted_subject_to_license
+modification: permitted_subject_to_license
+geometry:
+  n_layers: 28
+  n_kv_heads: 8
+  head_dim: 128
+  n_params: 596049920
+components: []
+files:
+  - name: model.safetensors
+    url: https://huggingface.co/Qwen/Qwen3-0.6B-Base/resolve/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/model.safetensors
+    sha256: cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba
+    size_bytes: 1192135096
+  - name: config.json
+    url: https://huggingface.co/Qwen/Qwen3-0.6B-Base/resolve/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/config.json
+    sha256: 504a6b58c4271583724e66584b6b7698aea18450209df6b2f7582df0e89cee59
+    size_bytes: 727
+  - name: generation_config.json
+    url: https://huggingface.co/Qwen/Qwen3-0.6B-Base/resolve/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/generation_config.json
+    sha256: 8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8
+    size_bytes: 138
+  - name: tokenizer.json
+    url: https://huggingface.co/Qwen/Qwen3-0.6B-Base/resolve/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/tokenizer.json
+    sha256: c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539
+    size_bytes: 7031645
+  - name: tokenizer_config.json
+    url: https://huggingface.co/Qwen/Qwen3-0.6B-Base/resolve/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/tokenizer_config.json
+    sha256: 3c04ed3ca964ea2f6b2b5faf0dc4d31aec1cb1e8b4bcf63f402d295046b422b5
+    size_bytes: 9678
+  - name: vocab.json
+    url: https://huggingface.co/Qwen/Qwen3-0.6B-Base/resolve/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/vocab.json
+    sha256: ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910
+    size_bytes: 2776833
+  - name: merges.txt
+    url: https://huggingface.co/Qwen/Qwen3-0.6B-Base/resolve/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/merges.txt
+    sha256: 8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5
+    size_bytes: 1671853
+
+approved: true
+reviewed_by: automated-licence-audit
+reviewed_at: "2026-11-04"
+notes: >-
+  Small sibling of the main base model. Used to validate the CPU LoRA training
+  pipeline end to end when the 1.7B run does not fit the measured memory budget.
+  A run on this model validates plumbing only; it says nothing about the
+  behaviour of the 1.7B model.

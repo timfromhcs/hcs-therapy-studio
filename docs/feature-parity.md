@@ -5,18 +5,18 @@ means not implemented; there is no aspirational column.
 
 | Feature | Desktop (Tauri) | Browser WebGPU | Browser WASM | Model needed | Network | Notes |
 |---|---|---|---|---|---|---|
-| Local text inference | runtime implemented, UI — | — | — | Qwen3-1.7B Q8_0 GGUF | none after install | desktop smoke run not yet executed |
-| Crisis gate + verified resources | implemented (API layer) | — | — | none (deterministic) | none | runs before the model |
-| Scope prompt + output guard | implemented (API layer) | — | — | none | none | |
-| Journal (encrypted) | implemented (API layer) | — | — | none | none | UI not built |
-| Export / delete personal data | implemented (API layer) | — | — | none | none | |
+| Local text inference | runtime implemented, UI wired | — | — | Qwen3-1.7B Q8_0 GGUF | none after install | desktop smoke run not yet executed |
+| Crisis gate + verified resources | implemented (API + UI) | — | — | none (deterministic) | none | runs before the model |
+| Scope prompt + output guard | implemented (API + UI) | — | — | none | none | |
+| Journal (encrypted) | implemented (API + UI) | — | — | none | none | UI not built |
+| Export / delete personal data | implemented (API + UI) | — | — | none | none | |
 | Tool registry + policy gate | implemented | — | — | none | none | |
 | MCP server (stdio) | implemented | **not possible** | **not possible** | none | none | a page cannot spawn stdio processes; needs a local bridge |
-| SVG sanitise + scene render | implemented (library/CLI) | — | — | none for render; LLM for layout | none | UI not built |
+| SVG sanitise + scene render | implemented (CLI + UI) | — | — | none for render; LLM for layout | none | UI not built |
 | Local evaluation suite | implemented (CLI) | — | — | model optional (echo provider) | none | |
 | Dataset gating | implemented (CLI) | — | — | none | none | |
 | Model management | implemented (CLI/API) | — | — | none | download only | |
-| CPU LoRA training | scaffolded | — | — | Qwen3-1.7B-Base | none | desktop/CLI only |
+| CPU LoRA training | pipeline proven (0.6B, non-promotable) | — | — | Qwen3-1.7B-Base | none | desktop/CLI only |
 | VLM (image/document) | — | — | — | Qwen3-VL-2B or SmolVLM2 | none | licence cleared, runtime unproven |
 | Generative images | **not planned** | — | — | — | — | deterministic editor instead (ADR-005) |
 | Installer / packaging | — | n/a | n/a | — | — | |

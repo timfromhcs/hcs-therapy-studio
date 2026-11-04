@@ -715,6 +715,43 @@ def cmd_svg(args: argparse.Namespace) -> int:
     raise SystemExit("unknown svg subcommand")
 
 
+def cmd_train(args: argparse.Namespace) -> int:
+    from .train import TrainingError, load_config, plan_training, run_training
+
+    paths = resolve_paths(args.home).ensure()
+    try:
+        config = load_config(Path(args.config))
+    except (OSError, TrainingError) as exc:
+        print(f"config error: {exc}", file=sys.stderr)
+        return EXIT_FAIL
+    plan = plan_training(config, root=repo_root(), paths=paths)
+    if args.train_command == "plan":
+        _emit(plan.to_dict(), args.json)
+        return EXIT_OK if plan.can_run else EXIT_FAIL
+
+    if args.train_command == "smoke":
+        if args.base_model_path:
+            base_model = Path(args.base_model_path)
+        else:
+            base_id = str(config.base_model.get("id", ""))
+            base_model = paths.models / base_id
+        try:
+            result = run_training(
+                plan,
+                paths,
+                base_model_path=base_model,
+                steps_override=args.steps,
+                resume=args.resume,
+            )
+        except TrainingError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return EXIT_FAIL
+        _emit(result.to_dict(), args.json)
+        return EXIT_OK
+
+    raise SystemExit("unknown train subcommand")
+
+
 def cmd_agent(args: argparse.Namespace) -> int:
     paths = resolve_paths(args.home).ensure()
     db = Database(paths, encrypt=True)
@@ -872,6 +909,19 @@ def build_parser() -> argparse.ArgumentParser:
     s_ren.add_argument("--out")
     s_ren.add_argument("--json", action="store_true")
     svg.set_defaults(func=cmd_svg)
+
+    train = sub.add_parser("train", help="CPU LoRA training (optional extra)")
+    train_sub = train.add_subparsers(dest="train_command", required=True)
+    t_plan = train_sub.add_parser("plan", help="validate data + estimate memory, run nothing")
+    t_plan.add_argument("--config", default="configs/train/cpu-lora-smoke.yaml")
+    t_plan.add_argument("--json", action="store_true")
+    t_smoke = train_sub.add_parser("smoke", help="execute the configured run")
+    t_smoke.add_argument("--config", default="configs/train/cpu-lora-smoke.yaml")
+    t_smoke.add_argument("--base-model-path", help="local path to the base checkpoint")
+    t_smoke.add_argument("--steps", type=int)
+    t_smoke.add_argument("--resume", action="store_true")
+    t_smoke.add_argument("--json", action="store_true")
+    train.set_defaults(func=cmd_train)
 
     agent = sub.add_parser("agent", help="local tool registry")
     agent_sub = agent.add_subparsers(dest="agent_command", required=True)

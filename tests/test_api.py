@@ -83,6 +83,27 @@ def test_hostile_origin_is_refused(api) -> None:
     assert "origin" in payload["error"].lower()
 
 
+def test_loopback_origin_on_any_port_is_allowed(api) -> None:
+    """A local dev/preview server picks its own port; the token is the boundary."""
+    for origin in ("http://localhost:4173", "http://127.0.0.1:5199"):
+        status, _, headers = _request(f"{api.url}/api/models", token=api.token, origin=origin)
+        assert status == 200, origin
+        assert headers.get("Access-Control-Allow-Origin") == origin
+
+
+def test_origin_allowed_helper() -> None:
+    from hcs_therapy.runtime.api import origin_allowed
+
+    assert origin_allowed("http://localhost:4173", ())
+    assert origin_allowed("http://127.0.0.1:8765", ())
+    assert not origin_allowed("https://localhost.evil.example", ())
+    assert not origin_allowed("file:///c:/tmp/x.html", ())
+    assert not origin_allowed("https://hcs-therapy-studio.vercel.app", ())
+    assert origin_allowed(
+        "https://hcs-therapy-studio.vercel.app", ("https://hcs-therapy-studio.vercel.app",)
+    )
+
+
 def test_allowed_origin_is_echoed(api) -> None:
     status, _, headers = _request(
         f"{api.url}/api/models", token=api.token, origin="http://localhost:5173"
