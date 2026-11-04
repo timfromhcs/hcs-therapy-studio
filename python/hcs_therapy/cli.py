@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import secrets
 import sys
 import time
 from pathlib import Path
@@ -319,6 +320,17 @@ def cmd_runtime(args: argparse.Namespace) -> int:
     raise SystemExit("unknown runtime subcommand")
 
 
+def _first_gguf_model(store: ModelStore) -> str | None:
+    """First installed model whose weights llama.cpp can actually load."""
+    for model in store.installed():
+        try:
+            if model.primary_path().suffix.lower() == ".gguf":
+                return model.id
+        except (StopIteration, ValueError):
+            continue
+    return None
+
+
 def _runtime_smoke(args, paths: Paths, store: ModelStore, binary: Path | None) -> int:
     if binary is None:
         print(
@@ -327,14 +339,24 @@ def _runtime_smoke(args, paths: Paths, store: ModelStore, binary: Path | None) -
             file=sys.stderr,
         )
         return EXIT_FAIL
-    model_id = args.model or next((m.id for m in store.installed()), None)
+    model_id = args.model or _first_gguf_model(store)
     if model_id is None:
-        print("no model installed; run 'hcs-therapy models list'", file=sys.stderr)
+        print(
+            "no GGUF model installed. llama.cpp cannot load safetensors; run: "
+            "hcs-therapy models list, then models install <gguf-id> --accept-license",
+            file=sys.stderr,
+        )
         return EXIT_FAIL
     try:
         model_path = store.primary_path(model_id)
     except StoreError as exc:
         print(str(exc), file=sys.stderr)
+        return EXIT_FAIL
+    if model_path.suffix.lower() != ".gguf":
+        print(
+            f"{model_id} is not a GGUF file ({model_path.name}); llama-server cannot load it",
+            file=sys.stderr,
+        )
         return EXIT_FAIL
 
     hardware = detect_hardware()
@@ -364,6 +386,7 @@ def _runtime_smoke(args, paths: Paths, store: ModelStore, binary: Path | None) -
         context=min(assessment.context, 4096),
         n_gpu_layers=assessment.n_gpu_layers,
         port=free_port(),
+        api_key=secrets.token_urlsafe(24),
     )
     server = LlamaServer(binary, config, paths)
     started = time.monotonic()
@@ -391,20 +414,26 @@ def _runtime_smoke(args, paths: Paths, store: ModelStore, binary: Path | None) -
         }
         import urllib.request
 
+        headers = {"Content-Type": "application/json"}
+        if config.api_key:
+            headers["Authorization"] = f"Bearer {config.api_key}"
         request = urllib.request.Request(
             f"http://127.0.0.1:{config.port}/v1/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         with urllib.request.urlopen(request, timeout=args.timeout) as response:  # noqa: S310
             body = json.loads(response.read())
         elapsed = time.monotonic() - request_started
-        content = ""
-        if body.get("choices"):
-            content = (body["choices"][0].get("message") or {}).get("content") or ""
+        message = (body.get("choices") or [{}])[0].get("message") or {}
+        # Qwen3-class models emit a separate reasoning stream. A short budget can
+        # be entirely consumed there, so both fields count as real generation.
+        content = message.get("content") or ""
+        reasoning = message.get("reasoning_content") or ""
+        generated = content or reasoning
         usage = body.get("usage") or {}
         tokens = int(usage.get("completion_tokens") or 0)
-        text_parts.append(content)
+        text_parts.append(generated)
         report.update(
             {
                 "first_token_seconds": round(first_token, 3) if first_token else None,
@@ -412,8 +441,9 @@ def _runtime_smoke(args, paths: Paths, store: ModelStore, binary: Path | None) -
                 "seconds": round(elapsed, 2),
                 "tokens_per_second": round(tokens / elapsed, 2) if elapsed > 0 and tokens else None,
                 "usage": usage,
-                "sample": content[:280],
-                "speed_ok": bool(content.strip()),
+                "sample": generated[:280],
+                "has_reasoning_stream": bool(reasoning),
+                "speed_ok": bool(generated.strip()),
             }
         )
         _emit(report, args.json)
@@ -436,24 +466,82 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from .runtime.api import serve
 
     paths = resolve_paths(args.home).ensure()
-    running = serve(
-        paths,
-        port=args.port,
-        model_id=args.model,
-        locale=args.locale,
-        region=args.region,
-        encrypt=not args.no_encrypt,
-    )
+    store = ModelStore(paths)
+    backend = None
+    backend_port = None
+    backend_key = None
+    model_id = args.model or (_first_gguf_model(store) if args.start_backend else None)
+
+    if args.start_backend:
+        binary = find_server_binary(paths)
+        if binary is None:
+            print(
+                "cannot start the backend: llama-server is not installed. "
+                "Run scripts/bootstrap/fetch_llama_server.ps1",
+                file=sys.stderr,
+            )
+            return EXIT_FAIL
+        if model_id is None:
+            print("cannot start the backend: no GGUF model installed", file=sys.stderr)
+            return EXIT_FAIL
+        model_path = store.primary_path(model_id)
+        hardware = detect_hardware()
+        assessment = assess_profile(hardware, QWEN3_1_7B, model_path.stat().st_size)
+        backend_key = secrets.token_urlsafe(24)
+        backend_port = free_port()
+        backend = LlamaServer(
+            binary,
+            ServerConfig(
+                model_path=model_path,
+                context=assessment.context,
+                n_gpu_layers=assessment.n_gpu_layers,
+                port=backend_port,
+                api_key=backend_key,
+            ),
+            paths,
+        )
+        print(
+            f"starting backend: {model_id} | {assessment.profile.value} | "
+            f"ctx {assessment.context} | {assessment.n_gpu_layers} GPU layers",
+            flush=True,
+        )
+        try:
+            backend.start(ready_timeout=args.timeout)
+        except Exception as exc:  # noqa: BLE001 - report, do not traceback at the user
+            print(f"backend failed to start: {exc}", file=sys.stderr)
+            return EXIT_FAIL
+
+    try:
+        running = serve(
+            paths,
+            port=args.port,
+            model_id=model_id,
+            backend_port=backend_port,
+            backend_key=backend_key,
+            locale=args.locale,
+            region=args.region,
+            encrypt=not args.no_encrypt,
+        )
+    except OSError as exc:
+        if backend is not None:
+            backend.stop()
+        print(f"cannot bind 127.0.0.1:{args.port}: {exc}", file=sys.stderr)
+        return EXIT_FAIL
+
+    token_file = paths.root / "api-token.txt"
+    token_file.write_text(running.token, encoding="utf-8")
     print(f"local API on {running.url}")
+    print(f"backend: {'running' if backend is not None else 'not started'}")
     print(f"token: {running.token}")
-    print("token file: " + str(paths.root / "api-token.txt"))
-    (paths.root / "api-token.txt").write_text(running.token, encoding="utf-8")
+    print(f"token file: {token_file}")
     print("Press Ctrl+C to stop.")
     try:
         while True:
             time.sleep(0.5)
     except KeyboardInterrupt:
         running.stop()
+        if backend is not None:
+            backend.stop()
         print("\nstopped")
     return EXIT_OK
 
@@ -831,7 +919,7 @@ def build_parser() -> argparse.ArgumentParser:
     r_smoke.add_argument("--backend", choices=["auto", "cpu", "vulkan"], default="auto")
     r_smoke.add_argument("--binary")
     r_smoke.add_argument("--prompt", default="Say hello in one short sentence.")
-    r_smoke.add_argument("--max-tokens", type=int, default=32)
+    r_smoke.add_argument("--max-tokens", type=int, default=64)
     r_smoke.add_argument("--timeout", type=float, default=300.0)
     r_smoke.add_argument("--json", action="store_true")
     runtime.set_defaults(func=cmd_runtime)
@@ -842,6 +930,12 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--locale", default="de")
     serve.add_argument("--region")
     serve.add_argument("--no-encrypt", action="store_true")
+    serve.add_argument(
+        "--start-backend",
+        action="store_true",
+        help="also start llama-server with the first installed GGUF model",
+    )
+    serve.add_argument("--timeout", type=float, default=600.0)
     serve.set_defaults(func=cmd_serve)
 
     ev = sub.add_parser("eval", help="evaluation suites")

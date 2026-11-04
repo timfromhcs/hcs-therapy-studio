@@ -50,3 +50,7 @@ evals/reports/**
 # Playwright MCP artifacts
 .playwright-mcp/
 
+
+# Tooling state
+.serena/
+

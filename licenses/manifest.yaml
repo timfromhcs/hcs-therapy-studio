@@ -220,18 +220,25 @@ assets:
 
   - id: llama-cpp-runtime
     kind: runtime
-    name: llama.cpp (llama-server)
+    name: llama.cpp llama-server (Windows x64, Vulkan build b12102)
     publisher: ggml-org
     source_url: https://github.com/ggml-org/llama.cpp
-    revision: ""
+    revision: bbb02c93e9b83255b70ac1a755bb02b0a251f9a7
     license_spdx: MIT
     license_url: https://github.com/ggml-org/llama.cpp/blob/master/LICENSE
+    sha256: b322f7d6ce8b2a31cf16980aa38986a6a27da2e55e406e770f0221621c38de08
     redistribution: permitted
     commercial_use: permitted
     modification: permitted
     upstream_notice_required: true
-    approved: false
+    approved: true
+    reviewed_by: automated-licence-audit
+    reviewed_at: "2026-11-04"
     notes: >-
-      Placeholder until a specific build is pinned for the desktop bundle. The
-      runtime licence grants nothing for model weights; those are listed
-      separately above.
+      Release tag b12102 (commit bbb02c93e9b83255b70ac1a755bb02b0a251f9a7),
+      asset llama-b12102-bin-win-vulkan-x64.zip (37,660,949 bytes). The sha256
+      was computed from the downloaded artifact; GitHub does not publish one.
+      The release bundles per-CPU micro-architecture DLLs (zen4, haswell, ...)
+      which are all part of the same MIT-licensed build. The runtime licence
+      grants nothing for model weights; those are listed separately.
+

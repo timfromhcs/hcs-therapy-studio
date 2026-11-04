@@ -17,7 +17,7 @@ Every component below is audited before it may be bundled. Entries with
 | `pixart-sigma` | PixArt-Sigma | PixArt-alpha | OpenRAIL++-M | `unpinned` | https://huggingface.co/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS | *(not approved — not shipped)*
 | `cbt-bench` | CBT-Bench | Psychotherapy-LLM | CC-BY-NC-4.0 | `unpinned` | https://huggingface.co/datasets/Psychotherapy-LLM/CBT-Bench | *(not approved — not shipped)*
 | `esconv` | ESConv | thu-coai | CC-BY-NC-4.0 | `unpinned` | https://github.com/thu-coai/Emotional-Support-Conversation | *(not approved — not shipped)*
-| `llama-cpp-runtime` | llama.cpp (llama-server) | ggml-org | MIT | `unpinned` | https://github.com/ggml-org/llama.cpp | *(not approved — not shipped)*
+| `llama-cpp-runtime` | llama.cpp llama-server (Windows x64, Vulkan build b12102) | ggml-org | MIT | `bbb02c93e9b8` | https://github.com/ggml-org/llama.cpp |
 
 ## Deliberately not used
 

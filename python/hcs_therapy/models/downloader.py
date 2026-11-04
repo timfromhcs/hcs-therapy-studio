@@ -191,4 +191,8 @@ def _stream_to_part(
                 written += len(block)
                 if progress is not None:
                     progress(written, expected_size)
+        if written == 0:
+            # A connection that opens and immediately returns EOF is a stalled
+            # CDN, not an empty file. Say so instead of hashing nothing.
+            raise NetworkError(f"server returned no data for {url}")
         return resumed_from

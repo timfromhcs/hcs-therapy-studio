@@ -176,14 +176,20 @@
     },
     {
       "SPDXID": "SPDXRef-Package-12",
-      "name": "llama.cpp (llama-server)",
-      "versionInfo": "unpinned",
+      "name": "llama.cpp llama-server (Windows x64, Vulkan build b12102)",
+      "versionInfo": "bbb02c93e9b8",
       "supplier": "Organization: ggml-org",
       "downloadLocation": "https://github.com/ggml-org/llama.cpp",
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
       "filesAnalyzed": false,
-      "externalRefs": []
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "checksum",
+          "referenceLocator": "b322f7d6ce8b2a31cf16980aa38986a6a27da2e55e406e770f0221621c38de08"
+        }
+      ]
     }
   ]
 }

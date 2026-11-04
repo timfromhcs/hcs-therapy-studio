@@ -48,7 +48,7 @@ tsc -b && vite build → built, 444 kB js / 141 kB css
 | Milestone | State | Evidence |
 |---|---|---|
 | M0 Repository/research freeze | **done** | licence register with verified SHAs, 9 ADRs, safety/privacy docs |
-| M1 Native LLM runtime | **runtime done, inference gate NOT met** | sidecar supervision + API + model store implemented and tested; no `llama-server` binary pinned, no GGUF run |
+| M1 Native LLM runtime | **gate PASSED (measured)** | 200/200 generations on CPU + Vulkan, hashes verified, see `docs/benchmarks/m1-runtime-gate.md` |
 | M2 Evaluation harness | **partial** | local suite + A/B compare; `eval run --provider echo` executed; no external benchmark |
 | M3 Dataset pipeline | **done (gating)** | `data validate` → ok, 10 smoke rows, 0 trainable, 0 leaks, 0 PII |
 | M4 CPU LoRA training | **pipeline proven, not a quality result** | 10-step and 13-step runs executed; resume from checkpoint-10 verified |
@@ -124,22 +124,54 @@ Bugs found **by** the browser check and fixed:
 `AGENT_QUOTA_EXHAUSTED` (25 free queries used). The UI review is therefore
 source-level plus rendered-browser evidence, **not** the tool receipt.
 
+## M1 — measured runtime results
+
+Artifacts: `llama.cpp` b12102 (commit `bbb02c93…f9a7`, archive sha256
+`b322f7d6…de08`), model `Qwen3-1.7B-Q8_0.gguf` (sha256 `061b54da…cb1a`,
+1,834,426,016 bytes, Apache-2.0, revision `90862c4b…6077`).
+
+| Check | CPU | Vulkan |
+|---|---|---|
+| 100 repeated generations | 100/100, **0 failures** | 100/100, **0 failures** |
+| Throughput | 16.55 tok/s | 27.36 tok/s (1.65×) |
+| Latency p50 (48 tok) | 2,823 ms | 1,722 ms |
+| Server working set | 1.86 GiB | 2.70 GiB |
+| Single-shot load | 3.18 s | 6.07 s |
+
+Full stack verified: `serve --start-backend` → `/health` `model_loaded: true`,
+normal message answered by the model (guard `ok`), imminent-risk message still
+bypassed the model and returned verified German numbers.
+
+Defects found and fixed during this gate:
+
+1. `runtime smoke` picked a safetensors model that llama.cpp cannot load.
+2. The sidecar was started without an API key and with CORS `*`.
+3. `message.content` was empty on Qwen3 because tokens went to `reasoning_content`.
+4. `serve --start-backend` did not exist although the 503 message promised it.
+5. `/health` reported `model_loaded: false` with a live backend, because it
+   inspected a process handle the API does not own.
+6. `allow_reuse_address` let two servers bind port 8765 silently on Windows.
+7. Model downloads that opened a connection and read zero bytes were hashed as
+   an empty file instead of raising a network error.
+
+Not established by M1: answer quality, German register consistency (the model
+mixed *du* and *Sie*), or any benchmark score.
+
 ## Explicitly NOT done
 
-- No `llama-server` binary pinned or bundled; **no local LLM inference has ever
-  run from this app**. No tokens/second, no Vulkan-vs-CPU comparison.
-- No GGUF model downloaded (only safetensors for training).
+- No `llama-server` binary is bundled in git; it is fetched by
+  `scripts/bootstrap/fetch_llama_server.ps1` and hash-pinned.
 - No external benchmark (MentalHealthBench, CBT-Bench, HealthBench, BFCL, MCPMark).
 - No German native-speaker review of prompts, templates or UI copy.
 - No Tauri shell, no installer, no wheel publication, no npm package, no Vercel
   deployment, no GitHub repository created or pushed.
 - No VLM runtime; no image generation by design (ADR-005).
 
-## Next actions before any capability claim
+## Next actions
 
-1. Pin a `llama-server` Vulkan build, record its SHA-256, add the licence entry.
-2. `models install qwen3-1.7b-gguf-q8-0 --accept-license`, `models verify`.
-3. `runtime smoke --backend cpu` then `--backend vulkan`; record load time,
-   first-token latency, tokens/s, peak RSS.
-4. 100-generation loop; count failures.
-5. Then, and only then, may the README claim working local inference.
+1. Time-to-first-token via the streaming path (the UI uses non-streaming today).
+2. Prompt-level German register anchoring (`du`/`Sie` consistency) plus a native
+   reviewer pass over the templates and the chat prompt.
+3. A reviewer-cleared training corpus so M4 can produce a promotable run.
+4. A/B evaluation of the LoRA adapter against the base model on `hcs-core`.
+5. Packaging (M10) and publication (M11, blocked on explicit authorisation).

@@ -5,7 +5,7 @@ means not implemented; there is no aspirational column.
 
 | Feature | Desktop (Tauri) | Browser WebGPU | Browser WASM | Model needed | Network | Notes |
 |---|---|---|---|---|---|---|
-| Local text inference | runtime implemented, UI wired | — | — | Qwen3-1.7B Q8_0 GGUF | none after install | desktop smoke run not yet executed |
+| Local text inference | **verified**: 100/100 gens, CPU 16.6 tok/s, Vulkan 27.4 tok/s | — | — | Qwen3-1.7B Q8_0 GGUF | none after install | `docs/benchmarks/m1-runtime-gate.md` |
 | Crisis gate + verified resources | implemented (API + UI) | — | — | none (deterministic) | none | runs before the model |
 | Scope prompt + output guard | implemented (API + UI) | — | — | none | none | |
 | Journal (encrypted) | implemented (API + UI) | — | — | none | none | UI not built |

@@ -57,22 +57,30 @@ important part: the integrated GPU's 9.35 GiB is *shared* with system RAM, so th
 profile is capped by the RAM that is actually free right now instead of promising
 VRAM that does not exist.
 
-Install the default text model (1.83 GB, Apache-2.0, SHA-256 pinned):
+Install the inference runtime (hash-pinned release, 36 MB) and the default text
+model (1.83 GB, Apache-2.0, SHA-256 pinned):
 
 ```powershell
+pwsh -File scripts/bootstrap/fetch_llama_server.ps1
 .\.venv\Scripts\hcs-therapy.exe models list
 .\.venv\Scripts\hcs-therapy.exe models install qwen3-1.7b-gguf-q8-0 --accept-license
-.\.venv\Scripts\hcs-therapy.exe runtime smoke --backend auto --json
+.\.venv\Scripts\hcs-therapy.exe models verify qwen3-1.7b-gguf-q8-0
+.\.venv\Scripts\hcs-therapy.exe runtime smoke --backend vulkan --json
 ```
 
-Start the local API and talk to it:
+Measured on the development machine: CPU 16.6 tok/s, Vulkan 27.4 tok/s, 100/100
+generations without a failure on each backend
+([report](docs/benchmarks/m1-runtime-gate.md)).
+
+Start the API *with* the model, or without it:
 
 ```powershell
-.\.venv\Scripts\hcs-therapy.exe serve --port 8765
+.\.venv\Scripts\hcs-therapy.exe serve --port 8765 --start-backend
 ```
 
 The server binds `127.0.0.1` only, prints a per-launch bearer token, and rejects
-any other browser origin.
+any other browser origin. With `--start-backend` it also starts `llama-server`
+with its own API key and a restricted CORS origin list.
 
 ## Implemented
 
@@ -100,10 +108,10 @@ any other browser origin.
 
 ## Experimental
 
-- **Local text inference** — every layer is implemented and tested, but no
-  `llama-server` binary is pinned and no GGUF model has been run. `runtime smoke`
-  has **never** executed here, so there is no tokens/second figure and no claim
-  that Vulkan inference works on this machine.
+- **Local text inference** — verified on this machine: 100/100 generations with
+  zero failures on both backends, CPU 16.6 tok/s, Vulkan 27.4 tok/s with a 1.7B
+  Q8_0 model. Runtime and model artifacts are hash-pinned. See
+  [`docs/benchmarks/m1-runtime-gate.md`](docs/benchmarks/m1-runtime-gate.md).
 - **CPU LoRA training** — the pipeline ran for real on a 0.6B base: 10 steps,
   checkpoints, adapter, resume from checkpoint-10. It is marked non-promotable
   because the corpus is 10 `engineering-smoke` rows. Full fine-tuning is out of
@@ -206,8 +214,10 @@ hcs-therapy agent tools | call TOOL --args '{...}' | audit
 - No external benchmark score is reported anywhere. MentalHealthBench, CBT-Bench
   and HealthBench need authorised access or non-commercial terms and are not
   bundled. The local suite measures behaviour on this project's own prompts only.
-- Vulkan inference is not claimed until `runtime smoke` has passed on the target
-  machine with a real binary and model.
+- Inference works and is measured, but *quality* is not established. In a real
+  run the 1.7B model mixed German `du` and `Sie` inside one answer, and appended
+  an emoji. The output guard does not catch register.
+- Time-to-first-token is not measured: the client uses the non-streaming path.
 - The default model is Q8_0 because that is the only quantisation Qwen publishes
   officially. Q4_K_M would need a separately audited third-party repo.
 - The integrated GPU shares memory with the system. Free-RAM measurement drives

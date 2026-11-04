@@ -104,6 +104,9 @@ class ServerConfig:
             args.extend(["--flash-attn", "on"])
         if self.api_key:
             args.extend(["--api-key", self.api_key])
+        # llama.cpp defaults to CORS "*"; that lets any page in any browser
+        # drive the sidecar. Restrict it to the loopback origins we serve.
+        args.extend(["--cors-origins", "http://localhost,http://127.0.0.1"])
         args.extend(self.extra_args)
         return args
 

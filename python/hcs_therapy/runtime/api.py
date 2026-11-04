@@ -117,6 +117,28 @@ class StudioState:
         self._lock = threading.Lock()
 
     # -- helpers -----------------------------------------------------------
+    def backend_healthy(self) -> bool:
+        """Probe the inference backend over HTTP.
+
+        The API does not own the sidecar process: ``serve --start-backend`` owns
+        it, and a user may run their own. Ownership is irrelevant here — what
+        matters is whether the port answers.
+        """
+        port = self.config.backend_port
+        if not port:
+            return False
+        headers = {}
+        if self.config.backend_key:
+            headers["Authorization"] = f"Bearer {self.config.backend_key}"
+        request = urllib.request.Request(
+            f"http://{LOOPBACK}:{port}/health", headers=headers
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=3) as response:  # noqa: S310 loopback
+                return response.status == 200
+        except (urllib.error.URLError, OSError, TimeoutError):
+            return False
+
     def device_report(self) -> dict[str, Any]:
         return {
             "hardware": self.hardware.to_dict(redact=True),
@@ -346,7 +368,7 @@ def _health(self: StudioState, body: dict, params: dict) -> dict:
         "status": "ok",
         "version": __version__,
         "local_only": True,
-        "model_loaded": self.backend.status().healthy,
+        "model_loaded": self.backend_healthy(),
     }
 
 
@@ -427,7 +449,11 @@ def _data_wipe(self: StudioState, body: dict, params: dict) -> dict:
 
 def _runtime_status(self: StudioState, body: dict, params: dict) -> dict:
     return {
-        "backend": self.backend.status().__dict__,
+        "backend": {
+            **self.backend.status().__dict__,
+            "healthy": self.backend_healthy(),
+            "port": self.config.backend_port,
+        },
         "profile": self.profile.to_dict() if self.profile else None,
     }
 
@@ -500,8 +526,7 @@ def _chat_completions(self: StudioState, body: dict, params: dict) -> Any:
         }
         return (HTTPStatus.OK, payload)
 
-    status = self.backend.status()
-    if not status.healthy:
+    if not self.backend_healthy():
         return (
             HTTPStatus.SERVICE_UNAVAILABLE,
             {
@@ -514,7 +539,7 @@ def _chat_completions(self: StudioState, body: dict, params: dict) -> Any:
     outbound = dict(body)
     prompt = system_prompt(self.config.locale)
     outbound["messages"] = [{"role": "system", "content": prompt}, *messages]
-    url = f"http://{LOOPBACK}:{status.port}/v1/chat/completions"
+    url = f"http://{LOOPBACK}:{self.config.backend_port}/v1/chat/completions"
     data = json.dumps(outbound).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if self.config.backend_key:
@@ -595,6 +620,11 @@ class StudioHTTPServer(ThreadingHTTPServer):
 
     daemon_threads = True
 
+    # On Windows SO_REUSEADDR lets a *second* process bind the same port, so an
+    # old instance silently keeps serving while the new one believes it owns the
+    # port. Refuse the bind instead.
+    allow_reuse_address = False
+
     def handle_error(self, request, client_address) -> None:
         import sys
 
@@ -627,6 +657,7 @@ def serve(
     port: int = 8765,
     model_id: str | None = None,
     backend_port: int | None = None,
+    backend_key: str | None = None,
     locale: str = "de",
     region: str | None = None,
     encrypt: bool = True,
@@ -638,7 +669,7 @@ def serve(
         token=token or secrets.token_urlsafe(32),
         model_id=model_id,
         backend_port=backend_port,
-        backend_key=secrets.token_urlsafe(24),
+        backend_key=backend_key or secrets.token_urlsafe(24),
         locale=locale,
         region=region,
         encrypt=encrypt,

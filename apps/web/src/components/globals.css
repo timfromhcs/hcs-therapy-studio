@@ -1,0 +1,408 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Loam — extracted from the Better Design app's own chrome.
+
+   Three ideas carry the whole system:
+     1. Warm paper ground, crisp white cards. Every neutral sits on hue 70-88,
+        so nothing reads as cold grey.
+     2. A three-tier radius scale. Controls are full pills, cards are generous
+        squircles, panels are rounder still. Radius signals size, not decoration.
+     3. One cool note. Focus is blue on a warm page, so the ring is the only
+        thing on screen that is not warm. It never competes with content.
+
+   Fills stay flat. A pill gets its presence from shape and weight, never from
+   a gradient or a glow.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Surfaces: warm cream paper, white cards that lift off it */
+  --background: oklch(0.957 0.008 85);
+  --foreground: oklch(0.31 0.006 75);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.31 0.006 75);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.31 0.006 75);
+
+  /* Primary: flat warm near-black pill */
+  --primary: oklch(0.235 0.004 75);
+  --primary-foreground: oklch(0.985 0.003 90);
+
+  --secondary: oklch(0.93 0.012 86);
+  --secondary-foreground: oklch(0.31 0.006 75);
+
+  --muted: oklch(0.94 0.009 86);
+  --muted-foreground: oklch(0.51 0.009 80);
+
+  /* Accent is the hover surface: one step darker than secondary, so a hover
+     deepens the surface instead of tinting it */
+  --accent: oklch(0.915 0.013 86);
+  --accent-foreground: oklch(0.31 0.006 75);
+
+  --destructive: oklch(0.63 0.235 32);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.895 0.01 85);
+  --input: oklch(0.99 0.003 88);
+
+  /* The one cool note on a warm page */
+  --ring: oklch(0.46 0.17 248);
+
+  --chart-1: oklch(0.64 0.17 248);
+  --chart-2: oklch(0.62 0.16 150);
+  --chart-3: oklch(0.66 0.21 38);
+  --chart-4: oklch(0.56 0.19 288);
+  --chart-5: oklch(0.68 0.2 345);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.31 0.006 75);
+  --sidebar-primary: oklch(0.235 0.004 75);
+  --sidebar-primary-foreground: oklch(0.985 0.003 90);
+  --sidebar-accent: oklch(0.915 0.013 86);
+  --sidebar-accent-foreground: oklch(0.31 0.006 75);
+  --sidebar-border: oklch(0.895 0.01 85);
+  --sidebar-ring: oklch(0.46 0.17 248);
+
+  /* Three-tier radius. Controls are pills, cards are squircles, panels rounder. */
+  --radius-control: 624.9375rem;
+  --radius-card: 1.5rem;
+  --radius-panel: 2rem;
+  --radius: var(--radius-card);
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Accent triads: a soft surface, a hairline border, and ink dark enough to
+     read on that surface. Status and marketing pops draw from these. */
+  --pop-blue-surface: oklch(0.93 0.045 248);
+  --pop-blue-border: oklch(0.82 0.08 248);
+  --pop-blue-ink: oklch(0.46 0.17 248);
+  --pop-green-surface: oklch(0.93 0.055 150);
+  --pop-green-border: oklch(0.82 0.09 150);
+  --pop-green-ink: oklch(0.4 0.12 150);
+  --pop-red-surface: oklch(0.94 0.045 32);
+  --pop-red-border: oklch(0.84 0.08 32);
+  --pop-red-ink: oklch(0.47 0.17 32);
+  --pop-orange-surface: oklch(0.94 0.05 38);
+  --pop-orange-border: oklch(0.85 0.09 38);
+  --pop-orange-ink: oklch(0.5 0.16 38);
+  --pop-purple-surface: oklch(0.93 0.045 288);
+  --pop-purple-border: oklch(0.83 0.08 288);
+  --pop-purple-ink: oklch(0.45 0.16 288);
+  --pop-pink-surface: oklch(0.94 0.045 345);
+  --pop-pink-border: oklch(0.84 0.08 345);
+  --pop-pink-ink: oklch(0.47 0.17 345);
+  --pop-amber-surface: oklch(0.94 0.05 88);
+  --pop-amber-border: oklch(0.86 0.09 88);
+  --pop-amber-ink: oklch(0.46 0.115 75);
+  --pop-neutral-surface: oklch(0.95 0.004 75);
+  --pop-neutral-border: oklch(0.89 0.006 75);
+  --pop-neutral-ink: oklch(0.45 0.008 75);
+
+  /* Depth is a warm hairline rim plus a soft spread. Never a hard drop. */
+  --shadow-2xs: 0 0.0625rem 0.125rem 0 oklch(0.3 0.01 75 / 0.03);
+  --shadow-xs: 0 0.0625rem 0.125rem 0 oklch(0.3 0.01 75 / 0.05);
+  --shadow-sm:
+    0 0 0 0.0625rem oklch(0.3 0.01 75 / 0.04),
+    0 0.0625rem 0.1875rem 0 oklch(0.3 0.01 75 / 0.06);
+  --shadow:
+    0 0 0 0.0625rem oklch(0.3 0.01 75 / 0.04),
+    0 0.125rem 0.375rem -0.0625rem oklch(0.3 0.01 75 / 0.05),
+    0 0.5rem 1.5rem -0.5rem oklch(0.3 0.01 75 / 0.07);
+  --shadow-md:
+    0 0 0 0.0625rem oklch(0.3 0.01 75 / 0.04),
+    0 0.125rem 0.375rem -0.0625rem oklch(0.3 0.01 75 / 0.05),
+    0 0.5rem 1.5rem -0.5rem oklch(0.3 0.01 75 / 0.07);
+  --shadow-lg:
+    0 0 0 0.0625rem oklch(0.3 0.01 75 / 0.035),
+    0 0.5rem 1.5rem -0.875rem oklch(0.3 0.01 75 / 0.08),
+    0 1.75rem 4rem -1.75rem oklch(0.3 0.01 75 / 0.13);
+  --shadow-xl:
+    0 0 0 0.0625rem oklch(0.3 0.01 75 / 0.035),
+    0 0.75rem 2rem -1rem oklch(0.3 0.01 75 / 0.1),
+    0 2.25rem 5rem -2rem oklch(0.3 0.01 75 / 0.16);
+  --shadow-2xl:
+    0 0 0 0.0625rem oklch(0.3 0.01 75 / 0.03),
+    0 2.5rem 6rem -2.25rem oklch(0.3 0.01 75 / 0.2);
+
+  /* --- Motion (standard profile) ---
+     Bare transition-* and ease-* classes read these; durations are
+     duration-fast, duration-base and duration-slow once installed. */
+  --transition-duration-fast: 150ms;
+  --transition-duration-base: 200ms;
+  --transition-duration-slow: 280ms;
+  --ease-out: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --ease-in: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  --default-transition-duration: var(--transition-duration-fast);
+  --default-transition-timing-function: var(--ease-out);
+
+  /* AI parts: the label that marks what a model wrote. */
+  --ai-label: var(--muted);
+  --ai-label-foreground: var(--foreground);
+}
+
+.dark {
+  /* Dark keeps the warmth: charcoal on hue 70, never a blue-black */
+  --background: oklch(0.2 0.009 70);
+  --foreground: oklch(0.94 0.009 85);
+
+  --card: oklch(0.245 0.009 70);
+  --card-foreground: oklch(0.94 0.009 85);
+
+  --popover: oklch(0.245 0.009 70);
+  --popover-foreground: oklch(0.94 0.009 85);
+
+  --primary: oklch(0.94 0.012 86);
+  --primary-foreground: oklch(0.22 0.006 70);
+
+  --secondary: oklch(0.29 0.012 72);
+  --secondary-foreground: oklch(0.91 0.009 85);
+
+  --muted: oklch(0.27 0.009 72);
+  --muted-foreground: oklch(0.72 0.009 82);
+
+  --accent: oklch(0.32 0.012 72);
+  --accent-foreground: oklch(0.96 0.007 86);
+
+  --destructive: oklch(0.68 0.21 32);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.34 0.01 72);
+  --input: oklch(0.27 0.009 72);
+  --ring: oklch(0.78 0.13 248);
+
+  --chart-1: oklch(0.76 0.13 248);
+  --chart-2: oklch(0.76 0.14 150);
+  --chart-3: oklch(0.76 0.16 38);
+  --chart-4: oklch(0.75 0.13 288);
+  --chart-5: oklch(0.77 0.15 345);
+
+  --sidebar: oklch(0.245 0.009 70);
+  --sidebar-foreground: oklch(0.94 0.009 85);
+  --sidebar-primary: oklch(0.94 0.012 86);
+  --sidebar-primary-foreground: oklch(0.22 0.006 70);
+  --sidebar-accent: oklch(0.32 0.012 72);
+  --sidebar-accent-foreground: oklch(0.96 0.007 86);
+  --sidebar-border: oklch(0.34 0.01 72);
+  --sidebar-ring: oklch(0.78 0.13 248);
+
+  --pop-blue-surface: oklch(0.3 0.055 248);
+  --pop-blue-border: oklch(0.46 0.09 248);
+  --pop-blue-ink: oklch(0.8 0.11 248);
+  --pop-green-surface: oklch(0.3 0.045 150);
+  --pop-green-border: oklch(0.45 0.08 150);
+  --pop-green-ink: oklch(0.82 0.13 150);
+  --pop-red-surface: oklch(0.3 0.05 32);
+  --pop-red-border: oklch(0.46 0.09 32);
+  --pop-red-ink: oklch(0.83 0.11 32);
+  --pop-orange-surface: oklch(0.3 0.05 38);
+  --pop-orange-border: oklch(0.46 0.09 38);
+  --pop-orange-ink: oklch(0.84 0.12 38);
+  --pop-purple-surface: oklch(0.3 0.05 288);
+  --pop-purple-border: oklch(0.46 0.09 288);
+  --pop-purple-ink: oklch(0.81 0.11 288);
+  --pop-pink-surface: oklch(0.3 0.05 345);
+  --pop-pink-border: oklch(0.46 0.09 345);
+  --pop-pink-ink: oklch(0.82 0.11 345);
+  --pop-amber-surface: oklch(0.3 0.045 88);
+  --pop-amber-border: oklch(0.45 0.08 88);
+  --pop-amber-ink: oklch(0.85 0.12 88);
+  --pop-neutral-surface: oklch(0.29 0.004 75);
+  --pop-neutral-border: oklch(0.38 0.006 75);
+  --pop-neutral-ink: oklch(0.78 0.008 75);
+
+  /* A dark shadow on a dark surface reads as nothing, so depth here is a rim
+     the light catches plus a soft drop. The top highlight stays inset: a white
+     outer shadow pointing up would fight the overhead light and look fake. */
+  --shadow-2xs: inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.06);
+  --shadow-xs:
+    inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.07),
+    0 0.0625rem 0.125rem 0 oklch(0 0 0 / 0.3);
+  --shadow-sm:
+    inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.08),
+    0 0 0 0.0625rem oklch(0 0 0 / 0.16),
+    0 0.0625rem 0.1875rem 0 oklch(0 0 0 / 0.3);
+  --shadow:
+    inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.08),
+    0 0 0 0.0625rem oklch(0 0 0 / 0.16),
+    0 0.5rem 1.5rem -0.5rem oklch(0 0 0 / 0.28);
+  --shadow-md:
+    inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.08),
+    0 0 0 0.0625rem oklch(0 0 0 / 0.16),
+    0 0.5rem 1.5rem -0.5rem oklch(0 0 0 / 0.28);
+  --shadow-lg:
+    inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.08),
+    inset 0 0 0 0.0625rem oklch(1 0 0 / 0.04),
+    0 0 0 0.0625rem oklch(0 0 0 / 0.16),
+    0 1.75rem 4rem -1.75rem oklch(0 0 0 / 0.55);
+  --shadow-xl:
+    inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.08),
+    inset 0 0 0 0.0625rem oklch(1 0 0 / 0.04),
+    0 0 0 0.0625rem oklch(0 0 0 / 0.16),
+    0 2.25rem 5rem -2rem oklch(0 0 0 / 0.6);
+  --shadow-2xl:
+    inset 0 0.0625rem 0 0 oklch(1 0 0 / 0.08),
+    inset 0 0 0 0.0625rem oklch(1 0 0 / 0.04),
+    0 0 0 0.0625rem oklch(0 0 0 / 0.16),
+    0 2.5rem 6rem -2.25rem oklch(0 0 0 / 0.65);
+}
+
+/* Registers duration-fast, duration-base and duration-slow, which the
+   components use. `reference` writes no variable that points at itself. */
+@theme inline reference {
+  --transition-duration-fast: var(--transition-duration-fast);
+  --transition-duration-base: var(--transition-duration-base);
+  --transition-duration-slow: var(--transition-duration-slow);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-pop-blue-surface: var(--pop-blue-surface);
+  --color-pop-blue-border: var(--pop-blue-border);
+  --color-pop-blue-ink: var(--pop-blue-ink);
+  --color-pop-green-surface: var(--pop-green-surface);
+  --color-pop-green-border: var(--pop-green-border);
+  --color-pop-green-ink: var(--pop-green-ink);
+  --color-pop-red-surface: var(--pop-red-surface);
+  --color-pop-red-border: var(--pop-red-border);
+  --color-pop-red-ink: var(--pop-red-ink);
+  --color-pop-orange-surface: var(--pop-orange-surface);
+  --color-pop-orange-border: var(--pop-orange-border);
+  --color-pop-orange-ink: var(--pop-orange-ink);
+  --color-pop-purple-surface: var(--pop-purple-surface);
+  --color-pop-purple-border: var(--pop-purple-border);
+  --color-pop-purple-ink: var(--pop-purple-ink);
+  --color-pop-pink-surface: var(--pop-pink-surface);
+  --color-pop-pink-border: var(--pop-pink-border);
+  --color-pop-pink-ink: var(--pop-pink-ink);
+  --color-pop-amber-surface: var(--pop-amber-surface);
+  --color-pop-amber-border: var(--pop-amber-border);
+  --color-pop-amber-ink: var(--pop-amber-ink);
+  --color-pop-neutral-surface: var(--pop-neutral-surface);
+  --color-pop-neutral-border: var(--pop-neutral-border);
+  --color-pop-neutral-ink: var(--pop-neutral-ink);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: calc(var(--radius-card) - 0.5rem);
+  --radius-md: calc(var(--radius-card) - 0.25rem);
+  --radius-lg: var(--radius-card);
+  --radius-xl: var(--radius-panel);
+  --radius-full: var(--radius-control);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Highlighted text adopts the near-black pill fill */
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  ::-moz-selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  /* Hold the page width when the scrollbar comes and goes */
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  /* Radix re-adds the scrollbar width as body margin, so the gutter alone
+     would double-compensate and shift the page when a dialog opens */
+  @supports (scrollbar-gutter: stable) {
+    html body[data-scroll-locked] {
+      margin-right: 0 !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Show an invalid field on the field itself, not only in the message under
+     it. Declared after Tailwind's utilities, so it wins over the field's own
+     border and focus-ring classes. */
+  [aria-invalid="true"]:is(input, textarea, select, [role="combobox"], [role="checkbox"], [role="radio"]),
+  [role="radiogroup"][aria-invalid="true"] [role="radio"] {
+    border-color: var(--destructive);
+  }
+  [aria-invalid="true"]:is(input, textarea, select, [role="combobox"], [role="checkbox"], [role="radio"]):focus-visible,
+  [role="radiogroup"][aria-invalid="true"] [role="radio"]:focus-visible {
+    border-color: var(--destructive);
+    --tw-ring-color: color-mix(in oklch, var(--destructive) 35%, transparent);
+  }
+
+  /* Shake a field once when it turns invalid. */
+  @keyframes deny-shake {
+    25% { translate: -0.09375rem; }
+    50% { translate: 0.109375rem; }
+    75% { translate: -0.109375rem; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    [aria-invalid="true"]:is(input, textarea, select, [role="combobox"], [role="checkbox"], [role="radio"]),
+    [role="radiogroup"][aria-invalid="true"] [role="radio"],
+    [data-input-otp-container]:has([aria-invalid="true"]) {
+      animation: deny-shake 250ms linear;
+    }
+  }
+}
+
+:root {
+  --layout-density: spacious;
+  --layout-density-source: design-system;
+  --layout-sidebar: calc(var(--spacing, 0.25rem) * 62);
+  --layout-inset: calc(var(--spacing, 0.25rem) * 10);
+  --layout-section-gap: calc(var(--spacing, 0.25rem) * 12);
+  --layout-column-gap: calc(var(--spacing, 0.25rem) * 4);
+  --layout-card-padding: calc(var(--spacing, 0.25rem) * 6);
+}

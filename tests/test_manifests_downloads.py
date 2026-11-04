@@ -13,6 +13,7 @@ import yaml
 from hcs_therapy.models.downloader import (
     ChecksumError,
     DownloadError,
+    NetworkError,
     SizeMismatchError,
     download_file,
     sha256_file,
@@ -229,3 +230,19 @@ def test_corrupted_existing_file_is_replaced(tmp_path: Path, monkeypatch) -> Non
     _patch_transport(monkeypatch, PAYLOAD)
     download_file("https://example.invalid/f.bin", target, expected_sha256=PAYLOAD_SHA)
     assert sha256_file(target) == PAYLOAD_SHA
+
+
+def test_empty_response_is_reported_as_network_error(tmp_path: Path, monkeypatch) -> None:
+    """A CDN that opens a connection and sends nothing must not look like success."""
+    import hcs_therapy.models.downloader as module
+
+    monkeypatch.setattr(module.time, "sleep", lambda _s: None)
+    _patch_transport(monkeypatch, b"")
+    with pytest.raises(NetworkError, match="no data"):
+        download_file(
+            "https://example.invalid/f.bin",
+            tmp_path / "f.bin",
+            expected_sha256=PAYLOAD_SHA,
+            retries=1,
+        )
+    assert not (tmp_path / "f.bin").exists()

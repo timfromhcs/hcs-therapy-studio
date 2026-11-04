@@ -17,7 +17,7 @@ test harness.
 Gate: no unknown dependency or model licence; project starts; baseline tests
 recorded. → satisfied, see `status.md`.
 
-## M1 — Minimal native LLM runtime (implemented, gate pending a local smoke run)
+## M1 — Minimal native LLM runtime (gate passed)
 
 Deliverables: `llama-server` supervision, loopback API, model manager with hash
 verification and resumable download, profile selection from measured memory.
@@ -25,9 +25,12 @@ verification and resumable download, profile selection from measured memory.
 Gate: 100 repeated short generations across CPU and Vulkan without a crash, with
 latency and RAM recorded.
 
-Remaining work: obtain a pinned `llama-server` Vulkan build, install
-`qwen3-1.7b-gguf-q8-0`, run `runtime smoke` on both `--backend cpu` and
-`--backend vulkan`, then run the 100-generation stress script.
+Done: pinned `llama-server` b12102 (hash recorded), installed
+`qwen3-1.7b-gguf-q8-0` (hash verified), `runtime smoke` on CPU and Vulkan, and
+100 repeated generations on each backend with zero failures. Numbers:
+`docs/benchmarks/m1-runtime-gate.md`.
+
+Remaining: time-to-first-token measurement on the streaming path.
 
 ## M2 — Evaluation harness (partially done)
 
