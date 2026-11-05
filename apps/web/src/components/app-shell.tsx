@@ -83,7 +83,8 @@ export function useHealth() {
     connected: boolean
     modelLoaded: boolean
     version: string | null
-  }>({ connected: false, modelLoaded: false, version: null })
+    checked: boolean
+  }>({ connected: false, modelLoaded: false, version: null, checked: false })
 
   const refresh = useCallback(() => {
     api
@@ -93,9 +94,12 @@ export function useHealth() {
           connected: payload.status === "ok",
           modelLoaded: payload.model_loaded,
           version: payload.version,
+          checked: true,
         }),
       )
-      .catch(() => setState({ connected: false, modelLoaded: false, version: null }))
+      .catch(() =>
+        setState({ connected: false, modelLoaded: false, version: null, checked: true }),
+      )
   }, [])
 
   useEffect(() => {
@@ -116,13 +120,20 @@ export function AppShell({
   screen: Screen
   onNavigate: (screen: Screen) => void
   locale: Locale
-  health: { connected: boolean; modelLoaded: boolean; version: string | null }
+  health: { connected: boolean; modelLoaded: boolean; version: string | null; checked: boolean }
 }) {
   const [dark, setDark] = useState(
     () => document.documentElement.classList.contains("dark") || false,
   )
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [filter, setFilter] = useState("")
+
+  // A page served from a public origin cannot reach 127.0.0.1: the browser
+  // blocks it. Saying "start the studio and this page connects" would be a
+  // promise the platform does not keep, so the hosted build says what is true.
+  const hosted =
+    typeof window !== "undefined" &&
+    !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)
 
   const toggleTheme = useCallback(() => {
     setDark((current) => {
@@ -278,20 +289,26 @@ export function AppShell({
       </div>
 
       <main id="main-content" className="min-w-0 flex-1 overflow-x-hidden pb-8">
-        {!health.connected && (
+        {health.checked && !health.connected && (
           <div
             role="status"
             className="mb-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--muted)]/60 p-4"
           >
             <p className="flex items-center gap-2 text-sm font-medium">
               <PlugZap aria-hidden="true" className="size-4" />
-              {t(locale, "offlineTitle")}
+              {t(locale, hosted ? "offlineHostedTitle" : "offlineTitle")}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">{t(locale, "offlineBody")}</p>
-            <code className="mt-2 block overflow-x-auto rounded-md bg-[color:var(--card)] px-3 py-2 text-xs">
-              hcs-therapy serve --port 8765 --start-backend
-            </code>
-            <p className="mt-2 text-xs text-muted-foreground">{t(locale, "offlineNote")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t(locale, hosted ? "offlineHostedBody" : "offlineBody")}
+            </p>
+            {!hosted && (
+              <code className="mt-2 block overflow-x-auto rounded-md bg-[color:var(--card)] px-3 py-2 text-xs">
+                hcs-therapy serve --port 8765 --start-backend
+              </code>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t(locale, hosted ? "offlineHostedNote" : "offlineNote")}
+            </p>
           </div>
         )}
         <nav className="mb-4 flex gap-1 overflow-x-auto md:hidden" aria-label={t(locale, "navSession")}>
@@ -322,7 +339,7 @@ function ScreenOutlet({
 }: {
   screen: Screen
   locale: Locale
-  health: { connected: boolean; modelLoaded: boolean; version: string | null }
+  health: { connected: boolean; modelLoaded: boolean; version: string | null; checked: boolean }
 }) {
   switch (screen) {
     case "home":

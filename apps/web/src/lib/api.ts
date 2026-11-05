@@ -187,7 +187,7 @@ export function setBaseUrl(url: string): void {
 
 async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<T> {
   const token = getToken()
   const response = await fetch(`${getBaseUrl()}${path}`, {
@@ -197,6 +197,11 @@ async function request<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    // A hosted page cannot always reach 127.0.0.1 (browsers restrict public
+    // pages talking to loopback). Without a deadline the request can stay
+    // pending forever and the UI shows a spinner that never resolves, which
+    // reads as a hung app rather than an unreachable one.
+    signal: options.signal ?? AbortSignal.timeout(options.timeoutMs ?? 8000),
   })
   const text = await response.text()
   let payload: unknown = null
@@ -221,6 +226,10 @@ export const api = {
   health: () =>
     request<{ status: string; version: string; local_only: boolean; model_loaded: boolean }>(
       "/health",
+      // A liveness probe has to conclude quickly: a hosted page whose request
+      // to 127.0.0.1 is blocked by the browser otherwise shows "checking" for
+      // seconds and looks hung.
+      { timeoutMs: 2500 },
     ),
   version: () => request<{ version: string; product: string; credit: string }>("/version"),
   deviceProfile: () => request<DeviceReport>("/api/device/profile"),

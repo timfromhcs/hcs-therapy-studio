@@ -15,7 +15,7 @@ export function HomeScreen({
   health,
 }: {
   locale: Locale
-  health: { connected: boolean; modelLoaded: boolean }
+  health: { connected: boolean; modelLoaded: boolean; checked: boolean }
 }) {
   const [report, setReport] = useState<DeviceReport | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +35,7 @@ export function HomeScreen({
     <>
       <SectionHeader as="h1" title={t(locale, "homeTitle")} description={t(locale, "homeLead")} />
 
-      {error && (
+      {error && health.connected && (
         <Alert>
           <AlertTitle>{t(locale, "disconnected")}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
@@ -43,9 +43,13 @@ export function HomeScreen({
       )}
 
       {!report ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner /> {t(locale, "commonLoading")}
-        </div>
+        error || (health.checked && !health.connected) ? (
+          <p className="text-sm text-muted-foreground">{t(locale, "homeNeedsServer")}</p>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner /> {t(locale, "commonLoading")}
+          </div>
+        )
       ) : (
         <>
           {report.profile ? (

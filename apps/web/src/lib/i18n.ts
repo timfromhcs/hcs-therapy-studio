@@ -33,6 +33,13 @@ const de = {
     "Diese Seite ist die statische Oberfläche. Starte das Studio auf deinem Rechner — dann verbindet sie sich automatisch.",
   offlineNote:
     "Es wird nichts an einen Server gesendet. Die Seite fragt ausschließlich 127.0.0.1.",
+  homeNeedsServer:
+    "Sobald das Studio auf diesem Rechner läuft, erscheinen hier Rechenprofil, Budget und Gerät.",
+  offlineHostedTitle: "Diese Fassung ist nur die Oberfläche",
+  offlineHostedBody:
+    "Browser blockieren Anfragen von einer öffentlichen Seite an deinen Rechner. Nimm die Desktop-Fassung, um wirklich zu arbeiten — hier lässt sich die Oberfläche ansehen.",
+  offlineHostedNote:
+    "Es gibt keinen Server, der etwas empfängt. Diese Seite lädt ausschließlich ihre eigenen Dateien.",
 
   homeTitle: "Übersicht",
   homeLead: "Alles läuft auf diesem Gerät. Kein Inhalt verlässt es.",
@@ -204,6 +211,13 @@ const en: Dict = {
   offlineBody:
     "This page is the static interface. Start the studio on your own machine and it connects automatically.",
   offlineNote: "Nothing is sent to any server. The page only ever asks 127.0.0.1.",
+  homeNeedsServer:
+    "Once the studio is running on this machine, the compute profile, budget and device appear here.",
+  offlineHostedTitle: "This build is the interface only",
+  offlineHostedBody:
+    "Browsers block requests from a public page to your own machine. Use the desktop build to actually work — here you can look at the interface.",
+  offlineHostedNote:
+    "There is no server receiving anything. This page loads only its own files.",
 
   homeTitle: "Overview",
   homeLead: "Everything runs on this device. Nothing leaves it.",
