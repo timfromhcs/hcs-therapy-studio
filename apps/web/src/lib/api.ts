@@ -106,6 +106,57 @@ export type StorageUsage = {
   root: string
 }
 
+export type KnowledgeHit = {
+  chunk_id: number
+  doc_id: string
+  source: string
+  title: string | null
+  text: string
+  score: number
+  citation: string
+  rank_word: number | null
+  rank_trigram: number | null
+}
+
+export type KnowledgeStats = {
+  documents: number
+  chunks: number
+  path: string
+  encrypted: boolean
+  retriever: string
+  vector_index: null
+  note: string
+}
+
+export type StreamMeta = ChatMeta & {
+  ttft_ms?: number | null
+  tokens_per_second?: number | null
+  streamed?: boolean
+  stream_error?: string
+  attentive?: boolean
+  register?: {
+    register: "du" | "sie" | "neutral"
+    label_de: string
+    mixed: boolean
+    du_forms: number
+    sie_forms: number
+    ambiguous_sie: number
+    examples: Record<string, string[]>
+    advice: string | null
+    anchored: boolean
+    violated_anchor: boolean
+  }
+  knowledge?: {
+    requested: boolean
+    hits: number
+    chunk_ids: number[]
+    citations_used?: number
+    unverified_citations?: number[]
+    citations_ok?: boolean
+    empty_reason: string | null
+  }
+}
+
 export class ApiError extends Error {
   status: number
   constructor(message: string, status: number) {
@@ -199,10 +250,114 @@ export const api = {
     const payload = await request<{
       choices: { message: { content: string } }[]
       hcs: ChatMeta
-    }>("/v1/chat/completions", { method: "POST", body: { messages } })
+    }>("/v1/chat/completions", {
+      method: "POST",
+      body: {
+        messages,
+        hcs: {
+          region: (localStorage.getItem("hcs.region") ?? "").toUpperCase(),
+          locale: (localStorage.getItem("hcs.locale") ?? "").slice(0, 2),
+        },
+      },
+    })
     return {
       content: payload.choices?.[0]?.message?.content ?? "",
       meta: payload.hcs,
     }
   },
+
+  /**
+   * Streaming chat over the server's SSE endpoint.
+   *
+   * On stop the AbortController aborts the fetch, which closes the socket; the
+   * server treats that as a normal client hang-up and writes nothing further.
+   * Whatever arrived before the abort stays in the caller's buffer, so a stopped
+   * answer is kept, never corrupted.
+   */
+  chatStream: async (
+    messages: { role: string; content: string }[],
+    handlers: {
+      onDelta: (delta: string) => void
+      onMeta: (meta: StreamMeta) => void
+      onPhase?: (phase: { phase: string; chars: number }) => void
+      onReplace?: (text: string) => void
+      onError?: (message: string) => void
+      signal?: AbortSignal
+      useKnowledge?: boolean
+      attentive?: boolean
+    },
+  ): Promise<void> => {
+    const token = getToken()
+    const response = await fetch(`${getBaseUrl()}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        messages,
+        stream: true,
+        hcs: {
+          ...(handlers.useKnowledge ? { use_knowledge: true } : {}),
+          ...(handlers.attentive ? { attentive: true } : {}),
+          region: (localStorage.getItem("hcs.region") ?? "").toUpperCase(),
+          locale: (localStorage.getItem("hcs.locale") ?? "").slice(0, 2),
+        },
+      }),
+      signal: handlers.signal,
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new ApiError(text.slice(0, 300) || `HTTP ${response.status}`, response.status)
+    }
+    if (!response.body) throw new ApiError("this browser cannot read a stream", 0)
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let newline = buffer.indexOf("\n")
+      while (newline >= 0) {
+        const line = buffer.slice(0, newline).trimEnd()
+        buffer = buffer.slice(newline + 1)
+        newline = buffer.indexOf("\n")
+        if (!line.startsWith("data:")) continue
+        let payload: Record<string, unknown>
+        try {
+          payload = JSON.parse(line.slice(5).trim())
+        } catch {
+          continue
+        }
+        if (typeof payload.delta === "string") handlers.onDelta(payload.delta)
+        else if (typeof payload.replace === "string") handlers.onReplace?.(payload.replace)
+        else if (typeof payload.phase === "string")
+          handlers.onPhase?.({
+            phase: payload.phase,
+            chars: Number(payload.chars ?? 0),
+          })
+        else if (typeof payload.error === "string") handlers.onError?.(payload.error)
+        else if (typeof payload.policy_mode === "string")
+          handlers.onMeta(payload as unknown as StreamMeta)
+      }
+    }
+  },
+
+  knowledgeStats: () => request<KnowledgeStats>("/api/knowledge/stats"),
+  knowledgeDocuments: () =>
+    request<{ documents: { doc_id: string; source: string; title: string | null; chunk_count: number }[] }>(
+      "/api/knowledge/documents",
+    ),
+  knowledgeSearch: (query: string, k = 5, lambda = 0.7) =>
+    request<{ query: string; hits: KnowledgeHit[]; retriever: string; empty_reason: string | null }>(
+      `/api/knowledge/search?q=${encodeURIComponent(query)}&k=${k}&lambda=${lambda}`,
+    ),
+  knowledgeReindex: () =>
+    request<{ indexed: number; stats: KnowledgeStats }>("/api/knowledge/reindex", {
+      method: "POST",
+      body: { confirmed: true },
+    }),
 }

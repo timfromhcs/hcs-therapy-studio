@@ -50,7 +50,12 @@ export function HomeScreen({
         <>
           {report.profile ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard label={t(locale, "profileLabel")} value={report.profile.profile} />
+              <StatCard
+                label={t(locale, "profileLabel")}
+                /* The enum has no space to wrap at; showing it with a space lets
+                   it break into two tidy lines instead of mid-word. */
+                value={report.profile.profile.replace(/_/g, " ")}
+              />
               <StatCard
                 label={t(locale, "contextLabel")}
                 value={`${report.profile.context.toLocaleString()} tokens`}

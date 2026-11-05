@@ -76,7 +76,13 @@ function StatCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-4xl font-semibold tracking-tight tabular-nums text-foreground">
+          {/*
+            `break-words` plus a modest base size: an identifier like
+            "VULKAN_BALANCED" has no space to wrap at, so at text-4xl it was
+            silently clipped by the card instead of overflowing the page — which
+            is exactly the failure an overflow assertion cannot see.
+          */}
+          <span className="min-w-0 break-words text-3xl font-semibold tracking-tight tabular-nums text-foreground">
             {value}
           </span>
           {change ? (

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
@@ -114,10 +114,22 @@
     --secondary: oklch(0.93 0.012 86);
     --secondary-foreground: oklch(0.31 0.006 75);
     --muted: oklch(0.94 0.009 86);
-    --muted-foreground: oklch(0.51 0.009 80);
     --accent: oklch(0.915 0.013 86);
     --accent-foreground: oklch(0.31 0.006 75);
-    --destructive: oklch(0.63 0.235 32);
+    /*
+     * Contrast, measured in Chromium against the real surfaces:
+     *   destructive fill  oklch(0.63 0.235 32) + white text = 3.80:1  FAIL (AA small text needs 4.5)
+     *   destructive fill  oklch(0.53 0.19 30)  + white text = 4.94:1  PASS
+     * Darkening the fill is the fix that keeps the text white; lightening the text
+     * would have pushed it below the floor on the hover state instead.
+     */
+    --destructive: oklch(0.53 0.19 30);
+    /*
+     * muted-foreground was oklch(0.51 0.009 80): 5.03:1 on white but only 4.72:1 on
+     * the page surface, which leaves no margin for an opacity variant. 0.47 gives
+     * 5.9:1 on white and 5.5:1 on the surface.
+     */
+    --muted-foreground: oklch(0.47 0.009 80);
     --border: oklch(0.895 0.01 85);
     --input: oklch(0.99 0.003 88);
     --ring: oklch(0.46 0.17 248);
@@ -207,7 +219,8 @@
     --muted-foreground: oklch(0.72 0.009 82);
     --accent: oklch(0.32 0.012 72);
     --accent-foreground: oklch(0.96 0.007 86);
-    --destructive: oklch(0.68 0.21 32);
+    /* dark fill 0.68 measured 3.08:1 against the white label; 0.56 gives 4.62:1 */
+    --destructive: oklch(0.56 0.19 30);
     --border: oklch(0.34 0.01 72);
     --input: oklch(0.27 0.009 72);
     --ring: oklch(0.78 0.13 248);

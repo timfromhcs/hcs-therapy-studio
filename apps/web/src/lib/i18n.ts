@@ -28,6 +28,11 @@ const de = {
   modelRunning: "Modell läuft",
   modelStopped: "Modell nicht gestartet",
   localOnly: "Nur lokal",
+  offlineTitle: "Keine Verbindung zum lokalen Studio",
+  offlineBody:
+    "Diese Seite ist die statische Oberfläche. Starte das Studio auf deinem Rechner — dann verbindet sie sich automatisch.",
+  offlineNote:
+    "Es wird nichts an einen Server gesendet. Die Seite fragt ausschließlich 127.0.0.1.",
 
   homeTitle: "Übersicht",
   homeLead: "Alles läuft auf diesem Gerät. Kein Inhalt verlässt es.",
@@ -51,6 +56,21 @@ const de = {
   chatBypassed: "Sicherheitsantwort ohne Modell",
   chatGuardTripped: "Antwort geprüft und ersetzt",
   chatBackendDown: "Kein Modell geladen. Starte den Server mit einem installierten Modell.",
+  chatStop: "Stopp",
+  chatStopping: "Angehalten",
+  chatRegenerate: "Neu formulieren",
+  chatCopy: "Kopieren",
+  chatCopied: "Kopiert",
+  chatThinking: "Denkt nach…",
+  chatLatency: "Erstes Zeichen",
+  chatTokensPerSecond: "Token/s",
+  chatUseKnowledge: "Eigene Notizen einbeziehen",
+  chatSources: "Verwendete Notizen",
+  chatNoSources: "Keine passende Notiz gefunden.",
+  chatUnverifiedCitation: "Nicht belegte Quellenangabe entfernt",
+  chatRegisterMixed: "Anrede wechselt (du/Sie)",
+  chatStreamError: "Der Datenstrom brach ab",
+  chatNewline: "Zeilenumbruch",
   crisisTitle: "Sofort erreichbar",
   crisisNote: "Diese App ist kein Krisendienst und kann keine Hilfe schicken.",
 
@@ -108,6 +128,14 @@ const de = {
   labNoAudit: "Noch kein Ereignis.",
   labStorage: "Speicher",
   labNone: "Keine Modell-Manifeste gefunden.",
+  labKnowledge: "Wissensbasis",
+  labKnowledgeDocs: "Dokumente",
+  labKnowledgeChunks: "Abschnitte",
+  labKnowledgeSearch: "Suchen",
+  labKnowledgePlaceholder: "z. B. Prüfungsangst, Schlaf, Atmung",
+  labKnowledgeReindex: "Tagebuch neu indexieren",
+  labKnowledgeNoHits: "Kein Abschnitt passt zu dieser Suche.",
+  labKnowledgeScore: "Score",
 
   safetyTitle: "Sicherheit",
   safetyLead: "Geprüfte Notfallnummern mit Quelle und Prüfdatum.",
@@ -138,6 +166,13 @@ const de = {
   commonRetry: "Erneut versuchen",
   commonClose: "Schließen",
   commonNone: "—",
+
+  skipToContent: "Zum Inhalt springen",
+  themeToDark: "Dunkles Design",
+  themeToLight: "Helles Design",
+  paletteTitle: "Befehlspalette",
+  palettePlaceholder: "Zu welchem Bereich?",
+  paletteHint: "Ctrl oder ⌘ + K öffnet diese Palette. Esc schließt sie.",
 } as const
 
 type Dict = { [K in keyof typeof de]: string }
@@ -165,6 +200,10 @@ const en: Dict = {
   modelRunning: "Model running",
   modelStopped: "Model not started",
   localOnly: "Local only",
+  offlineTitle: "Not connected to the local studio",
+  offlineBody:
+    "This page is the static interface. Start the studio on your own machine and it connects automatically.",
+  offlineNote: "Nothing is sent to any server. The page only ever asks 127.0.0.1.",
 
   homeTitle: "Overview",
   homeLead: "Everything runs on this device. Nothing leaves it.",
@@ -188,6 +227,21 @@ const en: Dict = {
   chatBypassed: "Safety response, model bypassed",
   chatGuardTripped: "Answer checked and replaced",
   chatBackendDown: "No model loaded. Start the server with a model installed.",
+  chatStop: "Stop",
+  chatStopping: "Stopped",
+  chatRegenerate: "Regenerate",
+  chatCopy: "Copy",
+  chatCopied: "Copied",
+  chatThinking: "Thinking…",
+  chatLatency: "First token",
+  chatTokensPerSecond: "tokens/s",
+  chatUseKnowledge: "Include my own notes",
+  chatSources: "Notes used",
+  chatNoSources: "No matching note found.",
+  chatUnverifiedCitation: "Unverified citation flagged",
+  chatRegisterMixed: "Address form switches (du/Sie)",
+  chatStreamError: "The stream broke off",
+  chatNewline: "new line",
   crisisTitle: "Immediate help",
   crisisNote: "This app is not a crisis service and cannot send help.",
 
@@ -245,6 +299,14 @@ const en: Dict = {
   labNoAudit: "No events yet.",
   labStorage: "Storage",
   labNone: "No model manifests found.",
+  labKnowledge: "Knowledge base",
+  labKnowledgeDocs: "documents",
+  labKnowledgeChunks: "chunks",
+  labKnowledgeSearch: "Search",
+  labKnowledgePlaceholder: "e.g. exam anxiety, sleep, breathing",
+  labKnowledgeReindex: "Re-index journal",
+  labKnowledgeNoHits: "No chunk matches this search.",
+  labKnowledgeScore: "Score",
 
   safetyTitle: "Safety",
   safetyLead: "Verified numbers with source and review date.",
@@ -275,6 +337,13 @@ const en: Dict = {
   commonRetry: "Try again",
   commonClose: "Close",
   commonNone: "—",
+
+  skipToContent: "Skip to content",
+  themeToDark: "Dark theme",
+  themeToLight: "Light theme",
+  paletteTitle: "Command palette",
+  palettePlaceholder: "Which area?",
+  paletteHint: "Ctrl or ⌘ + K opens this palette. Esc closes it.",
 }
 
 const DICTS: Record<Locale, Dict> = { de, en }
