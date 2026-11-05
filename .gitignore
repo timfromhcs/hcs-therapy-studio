@@ -40,6 +40,11 @@ evals/external/**
 evals/holdout/**
 evals/reports/**
 !**/.gitkeep
+# The synthetic smoke corpus is a test fixture, not training data: 10 rows,
+# review status `engineering-smoke`, and `hcs-therapy data validate` counts it as
+# 0 trainable records. `tests/test_cli.py` asserts exactly that, so the file has
+# to be present in a fresh clone.
+!datasets/train/seed-smoke.jsonl
 
 # Secrets
 .env

@@ -147,10 +147,12 @@ def test_repeated_identical_call_aborts(registry, db) -> None:
 
 
 def test_budget_time_limit() -> None:
-    state = BudgetState(LoopBudget(max_calls=5, max_seconds=0.001))
+    # Wall-clock dependence made this flaky: Windows' default timer granularity
+    # is ~15.6 ms, so sleeping 10 ms can read as 0 ms elapsed and the test fails
+    # only on a busy machine. The state can be aged explicitly instead.
     import time as _time
 
-    _time.sleep(0.01)
+    state = BudgetState(LoopBudget(max_calls=5, max_seconds=0.001), started=_time.monotonic() - 1.0)
     with pytest.raises(PolicyDenied, match="time budget"):
         state.consume("x")
 

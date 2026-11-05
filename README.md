@@ -12,6 +12,7 @@ Vulkan. No cloud inference, no telemetry, no hidden prompt logging.
 [![Code licence: Apache-2.0](https://img.shields.io/badge/code%20licence-Apache--2.0-3f6b52)](LICENSE)
 [![Model weights: separate terms](https://img.shields.io/badge/model%20weights-separate%20terms-6f9384)](MODEL_ATTRIBUTION.md)
 [![Tests](https://img.shields.io/badge/tests-539%20passing-3f6b52)](#verification)
+[![CI](https://github.com/timfromhcs/hcs-therapy-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/timfromhcs/hcs-therapy-studio/actions/workflows/ci.yml)
 [![Runtime](https://img.shields.io/badge/runtime-llama.cpp%20%C2%B7%20CPU%20%2B%20Vulkan-c9a227)](docs/benchmarks/m1-runtime-gate.md)
 [![Telemetry](https://img.shields.io/badge/telemetry-none-b03a3a)](#privacy)
 [![Status](https://img.shields.io/badge/status-pre--release%20v0.1.0-8a8f7a)](#honest-limitations)
@@ -26,6 +27,10 @@ Vulkan. No cloud inference, no telemetry, no hidden prompt logging.
 <img src="assets/banner.svg" alt="HCS Therapy Studio banner" width="100%" />
 
 > **Made with love by hcsmedia and timfromhcs**
+
+**See the interface:** <https://hcs-therapy-studio.vercel.app> — hosted, static, and honest
+about itself. Browsers block a public page from calling `127.0.0.1`, so that build shows the
+screens and says so; the actual inference runs in the desktop/CLI build on your machine.
 
 **Status: pre-release (v0.1.0).** This README separates what is implemented, what is
 experimental, and what is not built. Read [honest limitations](#honest-limitations) before
@@ -338,6 +343,7 @@ dimension delta now carries a **paired** bootstrap p-value instead of being eyeb
 |---|---|---|
 | `hcs-therapy-core` (Python wheel) | builds, installs clean | `pwsh -File scripts/verify/wheel_install.ps1` → exit 0 |
 | `@hcsmedia/therapy-sdk` (npm) | builds, packs | `npm pack --dry-run` → 14 files, 10.2 kB |
+| Hosted interface (Vercel) | live, interface only | <https://hcs-therapy-studio.vercel.app> — HTTP 200, no third-party origin in `performance.getEntriesByType('resource')` |
 | Desktop `.exe` installer | **not built** | — |
 | Browser WebGPU edition | **not built** | — |
 
@@ -398,6 +404,11 @@ pwsh -File scripts/verify/wheel_install.ps1 # build, twine check, clean-venv ins
 cd packages/sdk-ts; npm pack --dry-run      # 14 files, no sources, no dependencies
 ```
 
+CI runs the same commands on `windows-latest` and `ubuntu-latest`, plus the TypeScript build and
+a link check. The torch-dependent numerics get their own job, because only one file needs torch
+and installing it on every matrix leg would triple the runtime for 47 tests: 492 + 47 = 539, and
+the split is in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) rather than hidden.
+
 The web client was checked in Chromium against the production bundle: all eight screens at
 375, 768 and 1440 px, zero console errors, zero horizontal overflow, real streaming, real crisis
 path, real knowledge search. Screenshots live in [`docs/screenshots`](docs/screenshots).
@@ -456,9 +467,10 @@ licenses/manifest.yaml  licence register with verified upstream revisions
 |---|---|
 | Windows one-file installer | Not packaged. Running from source is the supported path. |
 | WebGPU / WASM browser edition | No model has been compiled or benchmarked for a browser runtime. |
+| Inference from the hosted page | **Measured**: a `fetch` from a public HTTPS page to `http://127.0.0.1:8765` never settles in Chromium — browsers restrict public pages talking to loopback. The hosted build therefore shows the interface and says so, instead of promising a connection it cannot make. |
 | VLM runtime | No vision model has been proven on this hardware. |
 | Text-to-image | Licence chain not approved; see [ADR-005](docs/decisions/ADR-0005-image-generation.md). |
-| Registry publication | The wheel and the npm tarball build locally and install cleanly. Nothing was uploaded. |
+| Registry publication | The wheel and the npm tarball build locally and install cleanly. Nothing was uploaded to PyPI or npm. |
 | Clinician review | A human task. No reviewer has seen these prompts. |
 
 ## Contributing
