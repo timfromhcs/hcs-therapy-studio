@@ -170,16 +170,44 @@ def test_license_verify_passes(capsys) -> None:
     assert "cbt-bench" in payload["unapproved"]
 
 
-def test_license_generate_writes_attribution(capsys, repo_root) -> None:
-    code = main(["license", "generate", "--json"])
+def test_license_generate_writes_attribution(capsys, repo_root, tmp_path) -> None:
+    """Generation must be exercised without dirtying the checkout.
+
+    The previous version called the CLI with no output directory, so it rewrote
+    five tracked files in the repository on every test run — visible as a date
+    bump in `git status` that looked like an author's edit.
+    """
+    code = main(["license", "generate", "--out", str(tmp_path), "--json"])
     _json_out(capsys)
     assert code == 0
     for name in ("THIRD_PARTY_NOTICES.md", "MODEL_ATTRIBUTION.md", "SBOM.spdx.json"):
-        assert (repo_root / name).is_file(), name
+        assert (tmp_path / name).is_file(), name
     # External references must appear, and rejected assets must be marked.
-    notices = (repo_root / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+    notices = (tmp_path / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
     assert "Qwen3-1.7B" in notices
     assert "not approved" in notices
+
+
+def test_license_generate_does_not_touch_the_checkout(capsys, repo_root, tmp_path) -> None:
+    """A test suite that mutates tracked files is a defect, not a convenience."""
+    tracked = [
+        "NOTICE",
+        "THIRD_PARTY_NOTICES.md",
+        "MODEL_ATTRIBUTION.md",
+        "DATASET_ATTRIBUTION.md",
+        "SBOM.spdx.json",
+    ]
+    before = {
+        name: (repo_root / name).read_text(encoding="utf-8")
+        for name in tracked
+        if (repo_root / name).is_file()
+    }
+    main(["license", "generate", "--out", str(tmp_path), "--json"])
+    _json_out(capsys)
+    for name, content in before.items():
+        assert (repo_root / name).read_text(encoding="utf-8") == content, (
+            f"{name} changed in the checkout during a test"
+        )
 
 
 def test_svg_sanitize_cli(capsys, tmp_path) -> None:

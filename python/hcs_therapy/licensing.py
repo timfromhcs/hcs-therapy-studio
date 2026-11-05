@@ -184,7 +184,15 @@ def write_bundle(bundle: AttributionBundle, root: Path) -> list[Path]:
     return written
 
 
-def generate(root: Path) -> list[Path]:
+def generate(root: Path, *, out: Path | None = None) -> list[Path]:
+    """Build the attribution bundle from ``root`` and write it to ``out``.
+
+    ``out`` defaults to ``root`` because that is what a release build wants. It
+    exists as a separate argument so a test can read the real manifests and write
+    somewhere disposable: the previous signature wrote into the checkout on every
+    test run and left five tracked files dirty, which is a defect in the test
+    harness masquerading as a date change.
+    """
     entries = load_license_manifest(root / "licenses" / "manifest.yaml")
     model_dir = root / "models" / "manifests"
     models = load_manifests(model_dir) if model_dir.is_dir() else []
@@ -207,4 +215,6 @@ def generate(root: Path) -> list[Path]:
             }
             for m in load_dataset_manifests(dataset_dir)
         ]
-    return write_bundle(build_bundle(entries, models, datasets=datasets), root)
+    target = out or root
+    target.mkdir(parents=True, exist_ok=True)
+    return write_bundle(build_bundle(entries, models, datasets=datasets), target)

@@ -20,6 +20,7 @@ import json
 import re
 import secrets
 import threading
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -27,24 +28,29 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from .. import __version__
 from ..hardware import HardwareReport, detect
+from ..knowledge import KnowledgeBase, citations_in, missing_citations
 from ..models.store import ModelStore, StoreError
 from ..paths import Paths
 from ..profiles import Assessment
 from ..profiles import assess as assess_profile
 from ..safety import (
+    analyse_register,
+    fallback_after_scan,
+    register_anchor,
+    resolve_region,
+    resources_dict,
+    scan_output,
+    system_prompt,
+)
+from ..safety import (
     assess as assess_crisis,
 )
 from ..safety import (
     decide as decide_policy,
-)
-from ..safety import (
-    resources_dict,
-    scan_output,
-    system_prompt,
 )
 from ..storage import Database
 from .llama_server import LOOPBACK, LlamaServer, find_server_binary
@@ -73,6 +79,12 @@ class ServerConfig:
     locale: str = "de"
     region: str | None = None
     encrypt: bool = True
+    # Qwen3-class models emit a long private reasoning phase before the first
+    # visible token. Measured on this machine: 13.3 s of silence for a single
+    # German reply, versus 0.5 s with thinking disabled. A conversation partner
+    # that pauses for 13 seconds is unusable, and the scratchpad is not a reply
+    # (AGENTS.md §6.5), so it is off by default and configurable.
+    thinking: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
 
@@ -85,6 +97,7 @@ class StudioState:
         self.store = ModelStore(self.paths)
         self.hardware = config.hardware or detect()
         self.db = Database(self.paths, encrypt=config.encrypt)
+        self.knowledge = KnowledgeBase(self.paths, key=self.db.key)
         if config.profile is None:
             geometry = None
             model_bytes = int(1.05 * 1024**3)
@@ -168,6 +181,7 @@ class StudioState:
 
     def close(self) -> None:
         self.backend.stop()
+        self.knowledge.close()
         self.db.close()
 
 
@@ -198,6 +212,10 @@ ROUTES: list[Route] = [
     ("GET", re.compile(r"^/api/journal$"), "journal_list"),
     ("POST", re.compile(r"^/api/journal$"), "journal_create"),
     ("DELETE", re.compile(r"^/api/journal/(?P<id>[A-Za-z0-9_]+)$"), "journal_delete"),
+    ("GET", re.compile(r"^/api/knowledge/stats$"), "knowledge_stats"),
+    ("GET", re.compile(r"^/api/knowledge/documents$"), "knowledge_documents"),
+    ("GET", re.compile(r"^/api/knowledge/search$"), "knowledge_search"),
+    ("POST", re.compile(r"^/api/knowledge/reindex$"), "knowledge_reindex"),
     ("POST", re.compile(r"^/api/data/export$"), "data_export"),
     ("POST", re.compile(r"^/api/data/wipe$"), "data_wipe"),
     ("GET", re.compile(r"^/api/runtime/status$"), "runtime_status"),
@@ -260,10 +278,30 @@ def make_handler(state: StudioState) -> type[BaseHTTPRequestHandler]:
                 return {}, "body must be a JSON object"
             return parsed, None
 
+        def _drain_body(self) -> None:
+            """Consume a request body we are not going to parse.
+
+            If the server answers and closes while the client is still sending a
+            body, Windows raises WSAECONNABORTED (10053) on the client instead of
+            delivering the response. Draining the body first is what makes a 401
+            or a 403 readable by the caller.
+            """
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except (TypeError, ValueError):
+                return
+            remaining = min(max(length, 0), MAX_BODY_BYTES)
+            while remaining > 0:
+                chunk = self.rfile.read(min(remaining, 65536))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+
         def _dispatch(self, method: str) -> None:
             origin = self._cors()
             if self.headers.get("Origin") and origin is None:
                 # Reject hostile browser origins outright, not just credentials.
+                self._drain_body()
                 self._send_json(HTTPStatus.FORBIDDEN, {"error": "origin not allowed"})
                 return
             if method == "OPTIONS":
@@ -281,6 +319,10 @@ def make_handler(state: StudioState) -> type[BaseHTTPRequestHandler]:
                 return
 
             path = self.path.split("?", 1)[0]
+            query = {
+                key: values[-1]
+                for key, values in parse_qs(urlsplit(self.path).query).items()
+            }
             for route_method, pattern, name in ROUTES:
                 if route_method != method:
                     continue
@@ -288,15 +330,19 @@ def make_handler(state: StudioState) -> type[BaseHTTPRequestHandler]:
                 if not match:
                     continue
                 if name not in ("health", "version") and not self._authorised():
+                    self._drain_body()
                     self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorised"}, origin)
                     return
                 body, error = self._read_json()
                 if error:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": error}, origin)
                     return
+                if name == "chat_completions" and body.get("stream") is True:
+                    self._stream_chat(state, body, origin)
+                    return
                 handler = getattr(state, name)
                 try:
-                    result = handler(body, dict(match.groupdict()))
+                    result = handler(body, {**match.groupdict(), **query})
                 except StoreError as exc:
                     self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)}, origin)
                     return
@@ -321,9 +367,274 @@ def make_handler(state: StudioState) -> type[BaseHTTPRequestHandler]:
                 return
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"}, origin)
 
+        # -- streaming -----------------------------------------------------
+        def _sse_open(self, origin: str | None) -> None:
+            """Open an SSE response with connection-close framing.
+
+            ``Content-Length`` is impossible for a stream, and implementing
+            chunked framing by hand for one endpoint buys nothing: HTTP/1.1
+            allows a response delimited by connection close. The trade-off is one
+            connection per message, which is exactly what this workload is.
+            """
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.send_header("X-Accel-Buffering", "no")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
+            self.end_headers()
+            self.close_connection = True
+
+        def _sse_send(self, payload: dict, event: str | None = None) -> bool:
+            try:
+                if event:
+                    self.wfile.write(f"event: {event}\n".encode())
+                self.wfile.write(f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode())
+                self.wfile.flush()
+                return True
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                # The user pressed stop. Not an error, and the caller must stop
+                # doing work for a client that is gone.
+                return False
+
+        def _stream_chat(self, state: StudioState, body: dict, origin: str | None) -> None:
+            messages = body.get("messages")
+            if not isinstance(messages, list) or not messages:
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": "messages must be a non-empty list"},
+                    origin,
+                )
+                return
+            last_user = ""
+            for message in reversed(messages):
+                if isinstance(message, dict) and message.get("role") == "user":
+                    content = message.get("content")
+                    if isinstance(content, str):
+                        last_user = content
+                    elif isinstance(content, list):
+                        last_user = " ".join(
+                            part.get("text", "") for part in content if isinstance(part, dict)
+                        )
+                    break
+
+            started = time.monotonic()
+            # The crisis gate runs before the stream opens, so no token can ever
+            # precede the safety decision.
+            assessment = assess_crisis(last_user)
+            decision = decide_policy(
+                assessment,
+                locale=_resolve_locale(state, body),
+                region=_resolve_region(state, body),
+                attentive=_attentive_for(body),
+            )
+
+            self._sse_open(origin)
+            if decision.override_text is not None:
+                state.db.audit(
+                    "crisis_gate_stream",
+                    "ok",
+                    summary=f"{decision.mode} categories={','.join(assessment.categories)}",
+                )
+                text = decision.override_text
+                # Emit in paragraph-sized slices so the UI path is identical to a
+                # model answer; the badge tells the truth about who wrote it.
+                for piece in _split_for_stream(text):
+                    if not self._sse_send({"delta": piece}):
+                        return
+                self._sse_send(
+                    {
+                        "policy_mode": decision.mode,
+                        "resources_shown": decision.show_resources,
+                        "scope_label": decision.scope_label,
+                        "model_bypassed": True,
+                        "output_guard_ok": True,
+                        "output_guard_categories": [],
+                        "ttft_ms": round((time.monotonic() - started) * 1000, 1),
+                        "tokens_per_second": None,
+                        "streamed": True,
+                    },
+                    event="hcs",
+                )
+                self._sse_send({"done": True})
+                return
+
+            if not state.backend_healthy():
+                self._sse_send(
+                    {
+                        "error": "local model backend is not running",
+                        "hint": "start it with: hcs-therapy serve --start-backend",
+                    },
+                    event="error",
+                )
+                self._sse_send({"done": True})
+                return
+
+            outbound = {key: value for key, value in body.items() if key not in ("hcs",)}
+            if not state.config.thinking:
+                outbound.setdefault("chat_template_kwargs", {"enable_thinking": False})
+            outbound["stream"] = True
+            turn_locale = _resolve_locale(state, body)
+            anchored = _anchor_for(body, last_user, turn_locale)
+            grounded = system_prompt(turn_locale, register=anchored)
+            if decision.system_suffix:
+                # The session-level carry-over only exists if it reaches the prompt.
+                grounded = f"{grounded}\n\n{decision.system_suffix}"
+            system_messages: list[dict[str, Any]] = [
+                {"role": "system", "content": grounded}
+            ]
+            knowledge_meta: dict[str, Any] | None = None
+            allowed_citations: list[int] = []
+            options = body.get("hcs")
+            options = options if isinstance(options, dict) else {}
+            if options.get("use_knowledge") and last_user:
+                try:
+                    requested = int(options.get("knowledge_k") or 4)
+                except (TypeError, ValueError):
+                    requested = 4
+                hits = state.knowledge.search(last_user, k=max(1, min(requested, 10)))
+                block = state.knowledge.context_block(hits)
+                if block:
+                    system_messages.append({"role": "system", "content": block})
+                allowed_citations = [hit.chunk_id for hit in hits]
+                knowledge_meta = {
+                    "requested": True,
+                    "hits": len(hits),
+                    "chunk_ids": allowed_citations,
+                    "empty_reason": None
+                    if hits
+                    else "no indexed passage shares a word or trigram with the message",
+                }
+            outbound["messages"] = [*system_messages, *messages]
+
+            url = f"http://{LOOPBACK}:{state.config.backend_port}/v1/chat/completions"
+            headers = {"Content-Type": "application/json"}
+            if state.config.backend_key:
+                headers["Authorization"] = f"Bearer {state.config.backend_key}"
+            request = urllib.request.Request(
+                url, data=json.dumps(outbound).encode("utf-8"), headers=headers
+            )
+            first_token_at: float | None = None
+            first_activity_at: float | None = None
+            reasoning_chars = 0
+            announced = 0
+            pieces: list[str] = []
+            token_count = 0
+            failure: str | None = None
+            try:
+                response = urllib.request.urlopen(request, timeout=600)  # noqa: S310 loopback
+            except (urllib.error.URLError, OSError) as exc:
+                self._sse_send({"error": f"backend request failed: {exc}"}, event="error")
+                self._sse_send({"done": True})
+                return
+
+            try:
+                for raw_line in response:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line or not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if payload == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(payload)
+                    except json.JSONDecodeError:
+                        continue
+                    choices = chunk.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta") or {}
+                    piece = delta.get("content") or ""
+                    reasoning = delta.get("reasoning_content") or ""
+                    if reasoning and not piece:
+                        # Qwen3-class models think before they answer. The
+                        # scratchpad is not shown — a chain of thought is not a
+                        # reply, and AGENTS.md §6.5 keeps it out of the product —
+                        # but the user must not stare at a dead screen either.
+                        if first_activity_at is None:
+                            first_activity_at = time.monotonic()
+                        reasoning_chars += len(reasoning)
+                        if reasoning_chars - announced >= 24:
+                            announced = reasoning_chars
+                            if not self._sse_send(
+                                {"phase": "thinking", "chars": reasoning_chars},
+                                event="phase",
+                            ):
+                                failure = "client disconnected"
+                                break
+                        continue
+                    if not piece:
+                        continue
+                    if first_activity_at is None:
+                        first_activity_at = time.monotonic()
+                    if first_token_at is None:
+                        first_token_at = time.monotonic()
+                    pieces.append(piece)
+                    token_count += 1
+                    if not self._sse_send({"delta": piece}):
+                        failure = "client disconnected"
+                        break
+            except (urllib.error.URLError, OSError) as exc:
+                failure = f"{type(exc).__name__}: {exc}"
+            finally:
+                with contextlib.suppress(Exception):
+                    response.close()
+
+            text = "".join(pieces)
+            if not text and reasoning_chars:
+                failure = (
+                    "the model spent its whole token budget on reasoning and never "
+                    "produced a visible answer; raise max_tokens"
+                )
+            guard = scan_output(text)
+            if not guard.ok:
+                fallback = fallback_after_scan(state.config.locale)
+                if not self._sse_send({"replace": fallback}):
+                    return
+                text = fallback
+            elapsed = time.monotonic() - started
+            meta: dict[str, Any] = {
+                "policy_mode": decision.mode,
+                "resources_shown": False,
+                "scope_label": decision.scope_label,
+                "model_bypassed": False,
+                "output_guard_ok": guard.ok,
+                "output_guard_categories": guard.categories,
+                "register": _register_meta(text, anchored),
+                "attentive": bool(decision.attentive),
+                "ttft_ms": None
+                if first_token_at is None
+                else round((first_token_at - started) * 1000, 1),
+                "first_activity_ms": None
+                if first_activity_at is None
+                else round((first_activity_at - started) * 1000, 1),
+                "reasoning_chars": reasoning_chars,
+                "tokens_per_second": None
+                if first_token_at is None or elapsed <= 0
+                else round(token_count / max(elapsed, 1e-6), 2),
+                "streamed": True,
+            }
+            if failure:
+                meta["stream_error"] = failure
+            if knowledge_meta is not None:
+                unverified = missing_citations(text, allowed_citations)
+                knowledge_meta["citations_used"] = len(citations_in(text))
+                knowledge_meta["unverified_citations"] = unverified
+                knowledge_meta["citations_ok"] = not unverified
+                meta["knowledge"] = knowledge_meta
+            state.db.audit(
+                "chat_completion_stream",
+                "ok" if guard.ok else "guard_tripped",
+                summary=f"chars={len(text)} mode={decision.mode}",
+            )
+            self._sse_send(meta, event="hcs")
+            self._sse_send({"done": True})
+
         def do_GET(self) -> None:  # noqa: N802
             self._dispatch("GET")
-
         def do_POST(self) -> None:  # noqa: N802
             self._dispatch("POST")
 
@@ -334,6 +645,28 @@ def make_handler(state: StudioState) -> type[BaseHTTPRequestHandler]:
             self._dispatch("OPTIONS")
 
     return Handler
+
+
+def _split_for_stream(text: str, *, size: int = 90) -> list[str]:
+    """Chop a deterministic answer into word-aligned slices for the SSE path.
+
+    The crisis response is not a model token stream, but the client should not
+    need two rendering paths: emitting it in slices keeps one code path in the
+    UI while the ``model_bypassed`` flag says who actually wrote it.
+    """
+    words = text.split(" ")
+    slices: list[str] = []
+    buffer = ""
+    for word in words:
+        candidate = f"{buffer} {word}".lstrip() if buffer else word
+        if len(candidate) > size and buffer:
+            slices.append(buffer + " ")
+            buffer = word
+        else:
+            buffer = candidate
+    if buffer:
+        slices.append(buffer)
+    return slices or [text]
 
 
 def origin_allowed(origin: str, allow_list: tuple[str, ...]) -> bool:
@@ -427,6 +760,55 @@ def _journal_delete(self: StudioState, body: dict, params: dict) -> dict:
     return {"deleted": params["id"]}
 
 
+def _knowledge_stats(self: StudioState, body: dict, params: dict) -> dict:
+    return self.knowledge.stats()
+
+
+def _knowledge_documents(self: StudioState, body: dict, params: dict) -> dict:
+    return {"documents": self.knowledge.documents()}
+
+
+def _knowledge_search(self: StudioState, body: dict, params: dict) -> dict:
+    query = str(params.get("q") or body.get("q") or "").strip()
+    if not query:
+        return (HTTPStatus.BAD_REQUEST, {"error": "q is required"})
+    try:
+        k = int(params.get("k") or body.get("k") or 5)
+        lam = float(params.get("lambda") or body.get("lambda") or 0.7)
+    except (TypeError, ValueError):
+        return (HTTPStatus.BAD_REQUEST, {"error": "k and lambda must be numbers"})
+    k = max(1, min(k, 20))
+    lam = max(0.0, min(lam, 1.0))
+    hits = self.knowledge.search(query, k=k, lam=lam)
+    self.db.audit("knowledge_search", "ok", summary=f"hits={len(hits)} k={k}")
+    return {
+        "query": query,
+        "hits": [hit.to_dict() for hit in hits],
+        "retriever": "bm25-word + bm25-trigram + rrf(60) + mmr",
+        "empty_reason": None if hits else "no chunk shares a word or trigram with the query",
+    }
+
+
+def _knowledge_reindex(self: StudioState, body: dict, params: dict) -> dict:
+    """Re-index the journal. Explicit, confirmed, and counted."""
+    _require_confirmation(body, "re-indexing your journal into the knowledge base")
+    entries = self.db.journal_entries()
+    indexed = 0
+    for entry in entries:
+        text = f"{entry.get('title') or ''}\n\n{entry.get('body') or ''}".strip()
+        if not text:
+            continue
+        self.knowledge.add_document(
+            source="journal",
+            title=entry.get("title"),
+            text=text,
+            doc_id=f"journal_{entry['id']}",
+        )
+        indexed += 1
+    self.db.audit("knowledge_reindex", "ok", summary=f"documents={indexed}")
+    return {"indexed": indexed, "stats": self.knowledge.stats()}
+
+
 def _data_export(self: StudioState, body: dict, params: dict) -> dict:
     _require_confirmation(body, "exporting personal data")
     data = self.db.export_all()
@@ -473,6 +855,84 @@ def _openai_models(self: StudioState, body: dict, params: dict) -> dict:
     }
 
 
+def _attentive_for(body: dict) -> bool:
+    """Whether this turn follows a crisis hand-off in the same conversation.
+
+    The client keeps the counter, because the server deliberately stores no
+    conversation. This can only make a turn *more* careful, so a client that lies
+    gains nothing except a slightly gentler reply; it cannot weaken the gate.
+    """
+    options = body.get("hcs")
+    return bool(isinstance(options, dict) and options.get("attentive") is True)
+
+
+def _anchor_for(body: dict, last_user: str, locale: str) -> str | None:
+    """The register instruction for this turn, or ``None``.
+
+    ``hcs.no_register_anchor`` disables it per request. That exists for one reason:
+    without it there is no way to measure whether the anchoring *does* anything,
+    and an unmeasured prompt change is exactly the kind of claim this project does
+    not make.
+    """
+    options = body.get("hcs")
+    if isinstance(options, dict) and options.get("no_register_anchor") is True:
+        return None
+    return register_anchor(last_user, locale=locale)
+
+
+def _register_meta(answer: str, anchored: str | None) -> dict[str, Any]:
+    """How the reply addresses the person, and whether that held.
+
+    Detection only. Rewriting German register means rewriting verb conjugation, and
+    a pronoun substitution would produce wrong German - so the product surfaces the
+    violation instead of silently mangling the sentence.
+    """
+    report = analyse_register(answer)
+    return {
+        **report.to_dict(),
+        "anchored": anchored is not None,
+        "violated_anchor": anchored is not None and report.mixed,
+    }
+
+
+def _resolve_locale(self: StudioState, body: dict) -> str:
+    """Answer language for this turn: the UI language, if it is one we ship.
+
+    The server default is a launch flag; the browser knows what the user is
+    actually reading. Accepting ``hcs.locale`` keeps the interface and the
+    answer in one language instead of producing a German crisis template inside
+    an English UI. Anything other than the two shipped locales is ignored rather
+    than passed through.
+    """
+    options = body.get("hcs")
+    if isinstance(options, dict):
+        candidate = options.get("locale")
+        if isinstance(candidate, str) and candidate.lower()[:2] in ("de", "en"):
+            return candidate.lower()[:2]
+    return self.config.locale
+
+
+def _resolve_region(self: StudioState, body: dict) -> str | None:
+    """Region for this turn.
+
+    The browser holds the user's region in localStorage and the server holds a
+    launch default. If the server ignored the client, the crisis card (drawn from
+    localStorage) and the crisis *message* (drawn from the server) could show two
+    different answers — the worst possible inconsistency in this product.
+
+    The client value is therefore accepted, but only as a *lookup key*: it is
+    resolved through the verified pack table, so an unknown or hostile value
+    degrades to the "no verified pack" fallback instead of inventing a hotline.
+    """
+    options = body.get("hcs")
+    if isinstance(options, dict):
+        candidate = options.get("region")
+        if isinstance(candidate, str) and candidate.strip():
+            pack = resolve_region(candidate)
+            return None if pack.region == "UNKNOWN" else pack.region
+    return self.config.region
+
+
 def _chat_completions(self: StudioState, body: dict, params: dict) -> Any:
     """Crisis-gated chat endpoint.
 
@@ -497,7 +957,10 @@ def _chat_completions(self: StudioState, body: dict, params: dict) -> Any:
 
     assessment = assess_crisis(last_user)
     decision = decide_policy(
-        assessment, locale=self.config.locale, region=self.config.region
+        assessment,
+        locale=_resolve_locale(self, body),
+        region=_resolve_region(self, body),
+        attentive=_attentive_for(body),
     )
     if decision.override_text is not None:
         self.db.audit(
@@ -522,6 +985,7 @@ def _chat_completions(self: StudioState, body: dict, params: dict) -> Any:
                 "resources_shown": decision.show_resources,
                 "scope_label": decision.scope_label,
                 "model_bypassed": True,
+                "attentive": True,
             },
         }
         return (HTTPStatus.OK, payload)
@@ -536,9 +1000,39 @@ def _chat_completions(self: StudioState, body: dict, params: dict) -> Any:
             },
         )
 
-    outbound = dict(body)
-    prompt = system_prompt(self.config.locale)
-    outbound["messages"] = [{"role": "system", "content": prompt}, *messages]
+    outbound = {key: value for key, value in body.items() if key != "hcs"}
+    if not self.config.thinking:
+        outbound.setdefault("chat_template_kwargs", {"enable_thinking": False})
+    turn_locale = _resolve_locale(self, body)
+    anchored = _anchor_for(body, last_user, turn_locale)
+    prompt = system_prompt(turn_locale, register=anchored)
+    if decision.system_suffix:
+        prompt = f"{prompt}\n\n{decision.system_suffix}"
+    hcs_options = body.get("hcs")
+    hcs_options = hcs_options if isinstance(hcs_options, dict) else {}
+    system_messages = [{"role": "system", "content": prompt}]
+    knowledge_meta: dict[str, Any] | None = None
+    allowed_citations: list[int] = []
+    if hcs_options.get("use_knowledge") and last_user:
+        try:
+            requested = int(hcs_options.get("knowledge_k") or 4)
+        except (TypeError, ValueError):
+            requested = 4
+        hits = self.knowledge.search(last_user, k=max(1, min(requested, 10)))
+        if hits:
+            block = self.knowledge.context_block(hits)
+            if block:
+                system_messages.append({"role": "system", "content": block})
+            allowed_citations = [hit.chunk_id for hit in hits]
+        knowledge_meta = {
+            "requested": True,
+            "hits": len(hits),
+            "chunk_ids": allowed_citations,
+            "empty_reason": None
+            if hits
+            else "no indexed passage shares a word or trigram with the message",
+        }
+    outbound["messages"] = [*system_messages, *messages]
     url = f"http://{LOOPBACK}:{self.config.backend_port}/v1/chat/completions"
     data = json.dumps(outbound).encode("utf-8")
     headers = {"Content-Type": "application/json"}
@@ -570,7 +1064,16 @@ def _chat_completions(self: StudioState, body: dict, params: dict) -> Any:
         "model_bypassed": False,
         "output_guard_ok": guard.ok,
         "output_guard_categories": guard.categories,
+        "register": _register_meta(text, anchored),
+        "attentive": bool(decision.attentive),
     }
+    if knowledge_meta is not None:
+        cited = citations_in(text)
+        unverified = missing_citations(text, allowed_citations)
+        knowledge_meta["citations_used"] = len(cited)
+        knowledge_meta["unverified_citations"] = unverified
+        knowledge_meta["citations_ok"] = not unverified
+        parsed["hcs"]["knowledge"] = knowledge_meta
     if not guard.ok:
         from ..safety import fallback_after_scan
 
@@ -598,6 +1101,10 @@ def attach(state_cls: type[StudioState]) -> None:
         _journal_list,
         _journal_create,
         _journal_delete,
+        _knowledge_stats,
+        _knowledge_documents,
+        _knowledge_search,
+        _knowledge_reindex,
         _data_export,
         _data_wipe,
         _runtime_status,

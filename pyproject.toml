@@ -23,6 +23,11 @@ classifiers = [
 dependencies = [
   "pyyaml>=6.0",
   "cryptography>=42",
+  # numpy is core, not optional: the knowledge base fuses two BM25 rankings, the
+  # eval harness bootstraps intervals, and the sampler is a numpy module. A wheel
+  # without it installs fine and then fails on `kb index` with ModuleNotFoundError,
+  # which is exactly the defect a clean-environment install found.
+  "numpy>=1.26",
 ]
 
 [project.optional-dependencies]

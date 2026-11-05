@@ -129,6 +129,9 @@ class PolicyDecision:
     system_suffix: str = ""
     scope_label: str = SCOPE_LABEL_DE
     notes: list[str] = field(default_factory=list)
+    #: True when an earlier turn in the same conversation was a crisis hand-off.
+    #: The turn itself may be normal; the *session* is not.
+    attentive: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -139,16 +142,26 @@ class PolicyDecision:
             "has_override": self.override_text is not None,
             "scope_label": self.scope_label,
             "notes": list(self.notes),
+            "attentive": self.attentive,
         }
 
 
-def system_prompt(locale: str = "de") -> str:
+def system_prompt(locale: str = "de", *, register: str | None = None) -> str:
+    """Scope prompt, plus the language and (optionally) the address register.
+
+    ``register`` is the anchored instruction from :func:`safety.register.anchor_instruction`.
+    It is appended as its own paragraph rather than woven into the core prompt so
+    that the measured effect is attributable: the only thing that changes between
+    two runs is this paragraph.
+    """
     extra = (
         "\n\nRespond in German unless the person writes in another language. "
         "German must read naturally, not like a translation."
         if locale.startswith("de")
         else "\n\nRespond in the language the person uses. Keep it natural."
     )
+    if register:
+        extra = f"{extra}\n\n{register}"
     return SYSTEM_PROMPT_CORE + extra
 
 
@@ -157,8 +170,16 @@ def decide(
     *,
     locale: str = "de",
     region: str | None = None,
+    attentive: bool = False,
 ) -> PolicyDecision:
-    """Turn a crisis assessment into a concrete turn policy."""
+    """Turn a crisis assessment into a concrete turn policy.
+
+    ``attentive`` means an earlier turn in this conversation was a crisis
+    hand-off. A single-turn gate forgets that immediately, which is how an app
+    ends up replying "great, let's plan your week!" two messages after someone
+    said they wanted to die. The gate still runs per turn; this only makes a
+    *normal* turn stay careful.
+    """
     english = locale.lower().startswith("en")
     resources_block = resources.render(region, "en" if english else "de")
 
@@ -176,6 +197,7 @@ def decide(
                 "deterministic hand-off; the model is not used for the first response",
                 "tool use blocked for this turn",
             ],
+            attentive=True,
         )
 
     if assessment.level == RiskLevel.ELEVATED:
@@ -198,12 +220,26 @@ def decide(
             ],
         )
 
+    normal_suffix = ""
+    notes: list[str] = []
+    if attentive:
+        normal_suffix = (
+            "Earlier in this conversation the person disclosed a crisis. Do not open with "
+            "small talk, do not change the subject, and do not congratulate them on feeling "
+            "better. Acknowledge what they said, keep the pace slow, and ask one plain "
+            "question. Do not repeat the emergency numbers unless they ask or escalate."
+        )
+        notes.append("session was escalated earlier; keeping the turn attentive")
+
     return PolicyDecision(
         mode=PolicyMode.NORMAL,
         allow_tools=True,
         allow_model=True,
         show_resources=False,
+        system_suffix=normal_suffix,
         scope_label=SCOPE_LABEL_EN if english else SCOPE_LABEL_DE,
+        notes=notes,
+        attentive=attentive,
     )
 
 

@@ -240,10 +240,43 @@ def _device_profile() -> dict[str, Any]:
 
 
 def _search_knowledge(paths: Paths, roots: list[Path], args: dict[str, Any]) -> dict[str, Any]:
+    """Search the local knowledge base, then the approved markdown folders.
+
+    The knowledge base is the real index (BM25 over words, BM25 over character
+    trigrams, RRF fusion, MMR diversification). The folder walk below stays as a
+    fallback for the case where nothing has been indexed yet, and is labelled
+    ``retriever: substring`` so a caller can tell the two apart instead of
+    believing a quality claim that was never made.
+    """
+    from ..knowledge import KnowledgeBase
+    from ..storage import ContentKey
+
     query = str(args.get("query", "")).strip()
     if not query:
         raise ToolError("query must not be empty")
-    limit = int(args.get("limit") or 5)
+    limit = max(1, min(int(args.get("limit") or 5), 20))
+
+    base = KnowledgeBase(paths, key=ContentKey.load_or_create(paths.root))
+    try:
+        indexed = base.search(query, k=limit)
+        if indexed:
+            return {
+                "query": query,
+                "retriever": "bm25-word + bm25-trigram + rrf(60) + mmr",
+                "results": [
+                    {
+                        "citation": hit.citation,
+                        "source": hit.source,
+                        "title": hit.title,
+                        "score": round(hit.score, 6),
+                        "excerpt": hit.text[:400].strip(),
+                    }
+                    for hit in indexed
+                ],
+            }
+    finally:
+        base.close()
+
     tokens = [t for t in re.split(r"\W+", query.lower()) if len(t) > 2]
     hits: list[dict[str, Any]] = []
     for root in roots:
@@ -267,7 +300,7 @@ def _search_knowledge(paths: Paths, roots: list[Path], args: dict[str, Any]) -> 
                 }
             )
     hits.sort(key=lambda h: h["score"], reverse=True)
-    return {"query": query, "results": hits[:limit]}
+    return {"query": query, "retriever": "substring", "results": hits[:limit]}
 
 
 def _read_selected_file(roots: list[Path], args: dict[str, Any]) -> dict[str, Any]:

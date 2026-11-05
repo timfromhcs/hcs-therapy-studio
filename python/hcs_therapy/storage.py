@@ -230,6 +230,11 @@ class Database:
                 connection.close()
         self._local = threading.local()
 
+    @property
+    def key(self) -> ContentKey | None:
+        """The content key, so other stores encrypt with the same material."""
+        return self._key
+
     def __enter__(self) -> Database:
         return self
 

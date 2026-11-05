@@ -49,15 +49,40 @@ EXIT_OK = 0
 EXIT_FAIL = 1
 
 
+def _stdout_supports_unicode() -> bool:
+    """Whether the console can encode arbitrary text.
+
+    Windows consoles default to a code page such as cp1252, which cannot encode
+    ``→``, ``≥`` or any CJK character. A retrieved note containing one of those
+    used to crash the command with a UnicodeEncodeError — the worst possible
+    failure for a search tool, because the crash depends on the *content* the
+    user is searching for.
+    """
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        "→≥✓ß".encode(encoding)
+    except (UnicodeEncodeError, LookupError):
+        return False
+    return True
+
+
+def _write(text: str) -> None:
+    if _stdout_supports_unicode():
+        print(text)
+        return
+    encoding = getattr(sys.stdout, "encoding", None) or "ascii"
+    print(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
+
+
 def _print_json(payload: Any) -> None:
-    print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    _write(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
 
 
 def _emit(payload: Any, as_json: bool) -> None:
     if as_json:
         _print_json(payload)
     else:
-        print(_humanise(payload))
+        _write(_humanise(payload))
 
 
 def _humanise(payload: Any) -> str:
@@ -317,7 +342,183 @@ def cmd_runtime(args: argparse.Namespace) -> int:
     if args.runtime_command == "smoke":
         return _runtime_smoke(args, paths, store, binary)
 
+    if args.runtime_command == "bench":
+        return _runtime_bench(args, paths, store, binary)
+
     raise SystemExit("unknown runtime subcommand")
+
+
+def _runtime_bench(args, paths: Paths, store: ModelStore, binary: Path | None) -> int:
+    """Measure time-to-first-token on the streaming path.
+
+    This exists because ``smoke`` per-request latency is not the number a user
+    feels. A user feels the delay until the first character appears; everything
+    after that is reading speed. Until this command ran, the project had no
+    measurement of it, and said so in ``status.md``.
+    """
+    if binary is None:
+        print("llama-server binary not found", file=sys.stderr)
+        return EXIT_FAIL
+    model_id = args.model or _first_gguf_model(store)
+    if model_id is None:
+        print("no GGUF model installed", file=sys.stderr)
+        return EXIT_FAIL
+    try:
+        model_path = store.primary_path(model_id)
+    except StoreError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_FAIL
+
+    hardware = detect_hardware()
+    assessment = assess_profile(hardware, QWEN3_1_7B, model_path.stat().st_size)
+    if args.backend == "cpu":
+        assessment.backend = "cpu"
+        assessment.n_gpu_layers = 0
+        assessment.profile = ProfileName.SAFE_CPU
+    elif args.backend == "vulkan" and not hardware.vulkan.usable:
+        print("requested Vulkan but no usable Vulkan device was detected", file=sys.stderr)
+        return EXIT_FAIL
+
+    config = ServerConfig(
+        model_path=model_path,
+        context=min(assessment.context, 4096),
+        n_gpu_layers=assessment.n_gpu_layers,
+        port=free_port(),
+        api_key=secrets.token_urlsafe(24),
+    )
+    server = LlamaServer(binary, config, paths)
+    report: dict[str, Any] = {
+        "model": model_id,
+        "backend": assessment.backend,
+        "profile": assessment.profile.value,
+        "context": config.context,
+        "requests": args.n,
+    }
+    try:
+        started = time.monotonic()
+        server.start(ready_timeout=args.timeout)
+        report["load_seconds"] = round(time.monotonic() - started, 2)
+        samples: list[dict[str, Any]] = []
+        for index in range(args.n):
+            result = _stream_once(
+                port=config.port,
+                key=config.api_key,
+                model_id=model_id,
+                prompt=args.prompt if index == 0 else f"{args.prompt} (Lauf {index + 1})",
+                max_tokens=args.max_tokens,
+                timeout=args.timeout,
+            )
+            samples.append(result)
+        ttfts = sorted(
+            sample["ttft_seconds"] for sample in samples if sample["ttft_seconds"]
+        )
+        activities = sorted(
+            sample["first_activity_seconds"]
+            for sample in samples
+            if sample["first_activity_seconds"]
+        )
+        rates = [sample["tokens_per_second"] for sample in samples if sample["tokens_per_second"]]
+        report["samples"] = samples
+        report["ttft_p50_seconds"] = round(_percentile(ttfts, 50), 3) if ttfts else None
+        report["ttft_p95_seconds"] = round(_percentile(ttfts, 95), 3) if ttfts else None
+        report["first_activity_p50_seconds"] = (
+            round(_percentile(activities, 50), 3) if activities else None
+        )
+        report["ttft_definition"] = (
+            "first visible content token; first_activity is the first token of any kind, "
+            "which is what a 'thinking' indicator can react to"
+        )
+        report["tokens_per_second_mean"] = round(sum(rates) / len(rates), 2) if rates else None
+        report["failed"] = sum(1 for sample in samples if not sample["text"].strip())
+        report["ok"] = bool(activities) and report["failed"] == 0
+    except (TimeoutError, RuntimeError, OSError) as exc:
+        report["error"] = f"{type(exc).__name__}: {exc}"
+        report["ok"] = False
+    finally:
+        server.stop()
+    _emit(report, args.json)
+    return EXIT_OK if report.get("ok") else EXIT_FAIL
+
+
+def _percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * (percentile / 100.0)
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = position - lower
+    return ordered[lower] * (1.0 - weight) + ordered[upper] * weight
+
+
+def _stream_once(
+    *, port: int, key: str | None, model_id: str, prompt: str, max_tokens: int, timeout: float
+) -> dict[str, Any]:
+    """One streaming request. Returns TTFT, token count and throughput."""
+    import urllib.request
+
+    payload = {
+        "model": model_id,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": max_tokens,
+        "temperature": 0.2,
+        "stream": True,
+    }
+    headers = {"Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+    )
+    started = time.monotonic()
+    ttft: float | None = None
+    first_activity: float | None = None
+    tokens = 0
+    reasoning_chars = 0
+    pieces: list[str] = []
+    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        for raw in response:
+            line = raw.decode("utf-8", errors="replace").strip()
+            if not line.startswith("data:"):
+                continue
+            body = line[5:].strip()
+            if body == "[DONE]":
+                break
+            try:
+                chunk = json.loads(body)
+            except json.JSONDecodeError:
+                continue
+            choices = chunk.get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta") or {}
+            piece = delta.get("content") or ""
+            reasoning = delta.get("reasoning_content") or ""
+            if reasoning and not piece:
+                if first_activity is None:
+                    first_activity = time.monotonic() - started
+                reasoning_chars += len(reasoning)
+                continue
+            if not piece:
+                continue
+            if first_activity is None:
+                first_activity = time.monotonic() - started
+            if ttft is None:
+                ttft = time.monotonic() - started
+            tokens += 1
+            pieces.append(piece)
+    elapsed = time.monotonic() - started
+    return {
+        "first_activity_seconds": None if first_activity is None else round(first_activity, 3),
+        "ttft_seconds": None if ttft is None else round(ttft, 3),
+        "completion_tokens": tokens,
+        "reasoning_chars": reasoning_chars,
+        "seconds": round(elapsed, 3),
+        "tokens_per_second": round(tokens / elapsed, 2) if elapsed > 0 and tokens else None,
+        "text": "".join(pieces),
+    }
 
 
 def _first_gguf_model(store: ModelStore) -> str | None:
@@ -551,17 +752,74 @@ def cmd_serve(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _read_json_file(path: Path) -> Any:
+    """Load a JSON file, tolerating a UTF-8 BOM.
+
+    PowerShell 5.1's ``Out-File -Encoding utf8`` writes a BOM, and redirecting a
+    report into a file is the documented workflow. Rejecting that file with
+    "Unexpected UTF-8 BOM" is a papercut every Windows user would hit.
+    """
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
 def cmd_eval(args: argparse.Namespace) -> int:
-    from .evals import build_suite, compare_reports, run_suite, suite_names, write_report
+    from .evals import (
+        build_suite,
+        calibration_report,
+        compare_reports,
+        rank_reports,
+        run_suite,
+        suite_names,
+        write_report,
+    )
 
     paths = resolve_paths(args.home)
     if args.eval_command == "suites":
         _emit({"local_suites": suite_names()}, args.json)
         return EXIT_OK
 
+    if args.eval_command == "rank":
+        reports = {}
+        for value in args.reports:
+            path = Path(value)
+            reports[path.stem] = _read_json_file(path)
+        result = rank_reports(reports)
+        _emit(result, args.json)
+        return EXIT_OK
+
+    if args.eval_command == "trajectories":
+        from .trajectories import run_all
+
+        report = run_all()
+        _emit(report, args.json)
+        if not args.json:
+            print(
+                f"\n{report['passed']}/{report['scenarios']} scenarios passed "
+                f"({report['metric']})"
+            )
+        return EXIT_OK if report["failed"] == 0 else EXIT_FAIL
+
+    if args.eval_command == "calibrate":
+        path = Path(args.report)
+        payload = _read_json_file(path)
+        pairs = payload.get("calibration")
+        if not isinstance(pairs, list) or not pairs:
+            print(
+                "report has no 'calibration' array of {probability, correct} objects; "
+                "record one in the suite before asking for calibration",
+                file=sys.stderr,
+            )
+            return EXIT_FAIL
+        result = calibration_report(
+            [float(pair["probability"]) for pair in pairs],
+            [1 if pair["correct"] else 0 for pair in pairs],
+        )
+        _emit(result, args.json)
+        return EXIT_OK
+
     if args.eval_command == "compare":
-        baseline = json.loads(Path(args.baseline).read_text(encoding="utf-8"))
-        candidate = json.loads(Path(args.candidate).read_text(encoding="utf-8"))
+        baseline = _read_json_file(Path(args.baseline))
+        candidate = _read_json_file(Path(args.candidate))
         result = compare_reports(baseline, candidate)
         _emit(result, args.json)
         return EXIT_OK if result["verdict"] == "no_regression" else EXIT_FAIL
@@ -766,7 +1024,7 @@ def cmd_license(args: argparse.Namespace) -> int:
         return EXIT_OK if payload["ok"] else EXIT_FAIL
 
     if args.license_command == "generate":
-        written = generate_attribution(root)
+        written = generate_attribution(root, out=Path(args.out) if args.out else None)
         _emit({"written": [str(p) for p in written]}, args.json)
         return EXIT_OK
 
@@ -838,6 +1096,42 @@ def cmd_train(args: argparse.Namespace) -> int:
         return EXIT_OK
 
     raise SystemExit("unknown train subcommand")
+
+
+def cmd_kb(args: argparse.Namespace) -> int:
+    """Local knowledge base: index, search, stats."""
+    from .knowledge import KnowledgeBase, index_paths
+    from .storage import ContentKey
+
+    paths = resolve_paths(args.home).ensure()
+    key = ContentKey.load_or_create(paths.root)
+    knowledge = KnowledgeBase(paths, key=key)
+    try:
+        if args.kb_command == "stats":
+            _emit(knowledge.stats(), args.json)
+            return EXIT_OK
+        if args.kb_command == "search":
+            hits = knowledge.search(args.query, k=args.k, lam=args.lam)
+            _emit(
+                {
+                    "query": args.query,
+                    "hits": [hit.to_dict() for hit in hits],
+                    "retriever": "bm25-word + bm25-trigram + rrf(60) + mmr",
+                },
+                args.json,
+            )
+            return EXIT_OK
+        if args.kb_command == "index":
+            targets = [Path(value) for value in args.paths or []]
+            if not targets:
+                print("nothing to index: pass one or more files or --journal", file=sys.stderr)
+                return EXIT_FAIL
+            results = index_paths(knowledge, targets)
+            _emit({"indexed": results, "stats": knowledge.stats()}, args.json)
+            return EXIT_OK
+        raise SystemExit("unknown kb subcommand")
+    finally:
+        knowledge.close()
 
 
 def cmd_agent(args: argparse.Namespace) -> int:
@@ -924,6 +1218,17 @@ def build_parser() -> argparse.ArgumentParser:
     r_smoke.add_argument("--json", action="store_true")
     runtime.set_defaults(func=cmd_runtime)
 
+    r_bench = runtime_sub.add_parser("bench", help="measure time-to-first-token on the streaming path")
+    r_bench.add_argument("--model")
+    r_bench.add_argument("--backend", choices=["auto", "cpu", "vulkan"], default="auto")
+    r_bench.add_argument("--binary")
+    r_bench.add_argument("--prompt", default="Say hello in one short sentence.")
+    r_bench.add_argument("--max-tokens", type=int, default=64)
+    r_bench.add_argument("--n", type=int, default=5, help="number of streaming requests")
+    r_bench.add_argument("--timeout", type=float, default=300.0)
+    r_bench.add_argument("--json", action="store_true")
+    runtime.set_defaults(func=cmd_runtime)
+
     serve = sub.add_parser("serve", help="start the loopback-only local API")
     serve.add_argument("--port", type=int, default=8765)
     serve.add_argument("--model")
@@ -956,6 +1261,16 @@ def build_parser() -> argparse.ArgumentParser:
     ev_cmp.add_argument("--json", action="store_true")
     ev_suites = ev_sub.add_parser("suites")
     ev_suites.add_argument("--json", action="store_true")
+    ev_rank = ev_sub.add_parser("rank", help="Bradley-Terry ranking across reports")
+    ev_rank.add_argument("--reports", nargs="+", required=True)
+    ev_rank.add_argument("--json", action="store_true")
+    ev_cal = ev_sub.add_parser("calibrate", help="ECE/Brier/NLL and temperature scaling")
+    ev_cal.add_argument("--report", required=True)
+    ev_cal.add_argument("--json", action="store_true")
+    ev_traj = ev_sub.add_parser(
+        "trajectories", help="multi-turn crisis scenarios against the policy layer"
+    )
+    ev_traj.add_argument("--json", action="store_true")
     ev.set_defaults(func=cmd_eval)
 
     data = sub.add_parser("data", help="dataset manifests and scans")
@@ -990,6 +1305,10 @@ def build_parser() -> argparse.ArgumentParser:
     l_verify.add_argument("--json", action="store_true")
     l_gen = lic_sub.add_parser("generate")
     l_gen.add_argument("--json", action="store_true")
+    l_gen.add_argument(
+        "--out",
+        help="write the bundle here instead of the repository root (used by tests)",
+    )
     lic.set_defaults(func=cmd_license)
 
     svg = sub.add_parser("svg", help="sanitise SVG or render a scene")
@@ -1016,6 +1335,20 @@ def build_parser() -> argparse.ArgumentParser:
     t_smoke.add_argument("--resume", action="store_true")
     t_smoke.add_argument("--json", action="store_true")
     train.set_defaults(func=cmd_train)
+
+    kb = sub.add_parser("kb", help="local knowledge base (lexical hybrid retrieval)")
+    kb_sub = kb.add_subparsers(dest="kb_command", required=True)
+    k_stats = kb_sub.add_parser("stats", help="documents, chunks, retriever identity")
+    k_stats.add_argument("--json", action="store_true")
+    k_search = kb_sub.add_parser("search", help="search indexed notes")
+    k_search.add_argument("query")
+    k_search.add_argument("--k", type=int, default=5)
+    k_search.add_argument("--lam", type=float, default=0.7, help="MMR relevance weight")
+    k_search.add_argument("--json", action="store_true")
+    k_index = kb_sub.add_parser("index", help="index .txt/.md/.rst files")
+    k_index.add_argument("paths", nargs="*")
+    k_index.add_argument("--json", action="store_true")
+    kb.set_defaults(func=cmd_kb)
 
     agent = sub.add_parser("agent", help="local tool registry")
     agent_sub = agent.add_subparsers(dest="agent_command", required=True)
