@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 400" width="1120" height="400" role="img" aria-label="Evidence map: every claim in the README is backed by a command whose output is committed, and claims without evidence are listed as limitations">
+  <title>Evidence map</title>
+  <defs>
+    <style>
+      .card { fill: #ffffff; stroke: #cfd8cd; stroke-width: 1.5; }
+      .green { fill: #f2f8f3; stroke: #3f6b52; stroke-width: 1.6; }
+      .amber { fill: #fdf7ec; stroke: #c9a227; stroke-width: 1.6; }
+      .red { fill: #fdf1ee; stroke: #b8432c; stroke-width: 1.6; }
+      .t { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; fill: #1d2a22; font-size: 12px; }
+      .h { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 600; fill: #1d2a22; font-size: 13.5px; }
+      .m { font-family: 'Consolas', 'SFMono-Regular', monospace; fill: #3f5348; font-size: 11px; }
+      .q { font-family: 'Segoe UI', Arial, sans-serif; fill: #6b7a70; font-size: 11.5px; }
+      .col { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 600; fill: #7a8a80; font-size: 11px; letter-spacing: 0.09em; }
+    </style>
+  </defs>
+
+  <rect width="1120" height="400" fill="#fbfbf9"/>
+
+  <text class="col" x="28" y="32">MEASURED — A COMMAND PRODUCED THIS NUMBER</text>
+  <text class="col" x="392" y="32">MEASURED, SMALL SAMPLE — QUOTED WITH ITS n</text>
+  <text class="col" x="756" y="32">NOT MEASURED — NAMED AS A LIMITATION</text>
+
+  <rect class="green" x="28" y="46" width="340" height="128" rx="10"/>
+  <text class="h" x="46" y="70">Inference</text>
+  <text class="m" x="46" y="92">runtime smoke · runtime bench</text>
+  <text class="t" x="46" y="114">200/200 generations, 0 failures</text>
+  <text class="t" x="46" y="133">27.4 tok/s Vulkan vs 16.6 CPU</text>
+  <text class="t" x="46" y="152">first token p50 0.199 s</text>
+
+  <rect class="green" x="28" y="186" width="340" height="104" rx="10"/>
+  <text class="h" x="46" y="210">Tests</text>
+  <text class="m" x="46" y="232">pytest · ruff · npm run build</text>
+  <text class="t" x="46" y="254">531 passed, 0 skipped</text>
+  <text class="t" x="46" y="273">wheel builds, installs clean, exit 0</text>
+
+  <rect class="amber" x="392" y="46" width="340" height="128" rx="10"/>
+  <text class="h" x="410" y="70">Register anchoring</text>
+  <text class="m" x="410" y="92">register_anchoring.py --ab --repeat 3</text>
+  <text class="t" x="410" y="114">wrong register: 0/15 anchored, 6/15 plain</text>
+  <text class="t" x="410" y="133">n = 15 per arm: enough to see the</text>
+  <text class="t" x="410" y="152">failure, too few to quote a rate</text>
+
+  <rect class="amber" x="392" y="186" width="340" height="104" rx="10"/>
+  <text class="h" x="410" y="210">Crisis trajectories</text>
+  <text class="m" x="410" y="232">eval trajectories</text>
+  <text class="t" x="410" y="254">6/6 scenarios, policy layer only</text>
+  <text class="t" x="410" y="273">no model is called for the crisis turns</text>
+
+  <rect class="red" x="756" y="46" width="336" height="128" rx="10"/>
+  <text class="h" x="774" y="70">External benchmarks</text>
+  <text class="t" x="774" y="92">MentalHealthBench, CBT-Bench, HealthBench</text>
+  <text class="t" x="774" y="112">need authorised access or NC terms.</text>
+  <text class="t" x="774" y="132">No score is reported anywhere.</text>
+  <text class="q" x="774" y="154">A number here would be an invention.</text>
+
+  <rect class="red" x="756" y="186" width="336" height="104" rx="10"/>
+  <text class="h" x="774" y="210">Clinical validation</text>
+  <text class="t" x="774" y="232">No clinician reviewed the prompts,</text>
+  <text class="t" x="774" y="251">templates or the German tone.</text>
+  <text class="t" x="774" y="270">This is not a medical device.</text>
+
+  <rect class="card" x="28" y="308" width="1064" height="66" rx="10"/>
+  <text class="h" x="46" y="334">The rule this diagram encodes</text>
+  <text class="t" x="46" y="356">If a claim has no command behind it, it moves one column to the right. status.md is the arbiter: a claim there without a command is a bug.</text>
+
+  <text class="q" x="28" y="392">Made with love by hcsmedia and timfromhcs.</text>
+</svg>

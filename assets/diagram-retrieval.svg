@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 570" width="1120" height="570" role="img" aria-label="Retrieval pipeline: two BM25 scorers over words and character trigrams are fused by reciprocal rank fusion, diversified by maximum marginal relevance, and cited with an invented-citation check">
+  <title>Retrieval pipeline</title>
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7fa88b"/>
+    </marker>
+    <style>
+      .stage { fill: #ffffff; stroke: #cfd8cd; stroke-width: 1.5; }
+      .scorer { fill: #f3f8f4; stroke: #7fa88b; stroke-width: 1.5; }
+      .fuse { fill: #eef4ef; stroke: #3f6b52; stroke-width: 1.75; }
+      .out { fill: #fdfaf3; stroke: #c9a227; stroke-width: 1.5; }
+      .t { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; fill: #1d2a22; font-size: 12.5px; }
+      .h { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 600; fill: #1d2a22; font-size: 14px; }
+      .m { font-family: 'Consolas', 'SFMono-Regular', monospace; fill: #3f5348; font-size: 11.5px; }
+      .q { font-family: 'Segoe UI', Arial, sans-serif; fill: #6b7a70; font-size: 11.5px; }
+      .edge { stroke: #7fa88b; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1120" height="570" fill="#fbfbf9"/>
+  <rect width="1120" height="570" fill="#fbfbf9"/>
+
+  <!-- query -->
+  <rect class="stage" x="24" y="200" width="150" height="76" rx="10"/>
+  <text class="h" x="42" y="228">message</text>
+  <text class="m" x="42" y="252">"Notfallnummern"</text>
+
+  <!-- scorer 1 -->
+  <rect class="scorer" x="226" y="92" width="270" height="104" rx="10"/>
+  <text class="h" x="244" y="118">BM25 over words</text>
+  <text class="m" x="244" y="141">k1=1.5   b=0.75</text>
+  <text class="t" x="244" y="162">umlaut folding, no stemming</text>
+  <text class="q" x="244" y="181">precision on exact terms</text>
+
+  <!-- scorer 2 -->
+  <rect class="scorer" x="226" y="252" width="270" height="104" rx="10"/>
+  <text class="h" x="244" y="278">BM25 over trigrams</text>
+  <text class="m" x="244" y="301">k1=1.2   b=0.30</text>
+  <text class="t" x="244" y="322">word boundaries padded: #angst#</text>
+  <text class="q" x="244" y="341">"Angst" inside "Versagensangst"</text>
+
+  <!-- RRF -->
+  <rect class="fuse" x="546" y="150" width="210" height="92" rx="10"/>
+  <text class="h" x="564" y="176">Reciprocal rank fusion</text>
+  <text class="m" x="564" y="200">Σ 1 / (60 + rank)</text>
+  <text class="q" x="564" y="224">rank-based, never score-based</text>
+
+  <!-- MMR -->
+  <rect class="fuse" x="806" y="150" width="286" height="92" rx="10"/>
+  <text class="h" x="824" y="176">MMR diversification</text>
+  <text class="m" x="824" y="200">λ·sim(d,q) − (1−λ)·max sim(d,s)</text>
+  <text class="q" x="824" y="224">λ = 0.7, plus token-set dedupe</text>
+
+  <!-- output -->
+  <rect class="out" x="660" y="296" width="432" height="132" rx="10"/>
+  <text class="h" x="680" y="322">cited passages in the prompt</text>
+  <text class="m" x="680" y="346">[#9] intended-purpose</text>
+  <text class="m" x="680" y="364">rank_word: —   rank_trigram: #1</text>
+  <text class="t" x="680" y="388">Every [#n] in the answer is checked</text>
+  <text class="t" x="680" y="406">against the injected set. An invented</text>
+  <text class="t" x="680" y="424">[#99] is flagged, never trusted.</text>
+
+  <!-- honesty note -->
+  <rect class="stage" x="24" y="430" width="608" height="94" rx="10" stroke-dasharray="5 4"/>
+  <text class="h" x="44" y="456">Why two scorers and not one</text>
+  <text class="t" x="44" y="479">Word tokenisation cannot match "Versagensangst" to "Angst": they share no</text>
+  <text class="t" x="44" y="497">token. The trigram scorer can, and the fusion keeps the detail the word</text>
+  <text class="t" x="44" y="515">scorer misses.</text>
+
+  <!-- arrows -->
+  <path class="edge" d="M174 222 H200 V144 H226" marker-end="url(#a3)"/>
+  <path class="edge" d="M174 254 H200 V304 H226" marker-end="url(#a3)"/>
+  <path class="edge" d="M496 144 H520 V180 H546" marker-end="url(#a3)"/>
+  <path class="edge" d="M496 304 H520 V212 H546" marker-end="url(#a3)"/>
+  <path class="edge" d="M756 196 H806" marker-end="url(#a3)"/>
+  <path class="edge" d="M949 242 V270 H876 V296" marker-end="url(#a3)"/>
+
+  <text class="q" x="24" y="552">Measured: the query "Notfallnummern" returns the safety document with rank_word empty and rank_trigram #1.</text>
+</svg>

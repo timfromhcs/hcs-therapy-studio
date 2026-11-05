@@ -1,0 +1,89 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: python (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Create the environment
+        run: uv venv --python 3.12
+
+      - name: Install the package
+        run: uv pip install -e ".[dev]"
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Tests
+        # These are the same commands that were run locally to produce the
+        # "443 passed" claim in the README. A workflow that runs something else
+        # is a workflow that proves something else.
+        run: uv run pytest -q
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
+
+  docs-links:
+    name: relative links in README resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check every relative link
+        run: |
+          python - <<'PY'
+          import pathlib, re, sys
+          text = pathlib.Path("README.md").read_text(encoding="utf-8")
+          pattern = re.compile(r"\]\(([^)#][^)\s]*)\)")
+          missing = []
+          for target in pattern.findall(text):
+              if target.startswith(("http://", "https://", "mailto:")):
+                  continue
+              path = target.split("#", 1)[0]
+              if not pathlib.Path(path).exists():
+                  missing.append(target)
+          for target in missing:
+              print(f"missing: {target}")
+          sys.exit(1 if missing else 0)
+          PY

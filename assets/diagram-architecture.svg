@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 620" width="1120" height="620" role="img" aria-label="HCS Therapy Studio architecture: a static browser client talks only to a loopback API, which runs a deterministic crisis gate before any model call">
+  <title>Architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7fa88b"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#b8432c"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #cfd8cd; stroke-width: 1.5; }
+      .boxfill { fill: #f3f8f4; stroke: #9fb8a6; stroke-width: 1.5; }
+      .zone { fill: #fbfbf9; stroke: #e2e5df; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .t { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; fill: #1d2a22; }
+      .h { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; fill: #1d2a22; }
+      .m { font-family: 'Consolas', 'SFMono-Regular', monospace; fill: #4a5a50; }
+      .q { fill: #6b7a70; }
+      .line { stroke: #7fa88b; stroke-width: 2; fill: none; }
+      .lineRed { stroke: #b8432c; stroke-width: 2; fill: none; }
+      .zoneLabel { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; fill: #7a8a80; letter-spacing: 0.08em; }
+    </style>
+  </defs>
+
+  <rect width="1120" height="620" fill="#fbfbf9"/>
+
+  <!-- Browser zone -->
+  <rect class="zone" x="28" y="60" width="330" height="180" rx="14"/>
+  <text class="zoneLabel" x="46" y="86">BROWSER — STATIC, TALKS ONLY TO 127.0.0.1</text>
+  <rect class="box" x="52" y="104" width="282" height="56" rx="10"/>
+  <text class="h" x="72" y="128" font-size="16">React 19 + Vite client</text>
+  <text class="t" x="72" y="148" font-size="13">8 screens · DE/EN · SSE streaming</text>
+  <rect class="box" x="52" y="172" width="282" height="50" rx="10"/>
+  <text class="t" x="72" y="194" font-size="13">Content-Security-Policy: no remote origin</text>
+  <text class="q" x="72" y="211" font-size="12">token in localStorage, never in a URL</text>
+
+  <!-- Local zone -->
+  <rect class="zone" x="28" y="266" width="1064" height="326" rx="14"/>
+  <text class="zoneLabel" x="46" y="292">YOUR MACHINE — NOTHING LEAVES IT</text>
+
+  <!-- API -->
+  <rect class="boxfill" x="60" y="312" width="252" height="122" rx="10"/>
+  <text class="h" x="80" y="338" font-size="16">Loopback API</text>
+  <text class="t" x="80" y="360" font-size="12.5">per-launch bearer token</text>
+  <text class="t" x="80" y="379" font-size="12.5">CORS allow-list · size caps</text>
+  <text class="t" x="80" y="398" font-size="12.5">SSE streaming · confirmation gate</text>
+  <text class="m" x="80" y="418" font-size="11.5">127.0.0.1:8765</text>
+
+  <!-- Gate -->
+  <rect class="box" x="352" y="296" width="208" height="74" rx="10" stroke="#b8432c"/>
+  <text class="h" x="372" y="322" font-size="15">Deterministic</text>
+  <text class="h" x="372" y="342" font-size="15">crisis gate</text>
+  <text class="q" x="372" y="360" font-size="11.5">EN/DE · negation · quoted · 3rd party</text>
+
+  <!-- bypass -->
+  <rect class="box" x="352" y="418" width="208" height="86" rx="10" stroke="#b8432c" stroke-dasharray="5 4"/>
+  <text class="h" x="372" y="442" font-size="14" fill="#8f3323">Reviewed template</text>
+  <text class="t" x="372" y="462" font-size="12">verified numbers by region</text>
+  <text class="t" x="372" y="480" font-size="12">model bypassed entirely</text>
+  <text class="t" x="372" y="497" font-size="12">single language, no markdown</text>
+
+  <!-- Model -->
+  <rect class="boxfill" x="624" y="296" width="234" height="94" rx="10"/>
+  <text class="h" x="644" y="322" font-size="15">llama-server sidecar</text>
+  <text class="t" x="644" y="344" font-size="12.5">llama.cpp · CPU or Vulkan</text>
+  <text class="m" x="644" y="364" font-size="11.5">Qwen3-1.7B-Q8_0.gguf</text>
+  <text class="q" x="644" y="381" font-size="11.5">SHA-256 pinned</text>
+
+  <!-- Guard -->
+  <rect class="box" x="624" y="418" width="234" height="86" rx="10"/>
+  <text class="h" x="644" y="442" font-size="14">Output guard</text>
+  <text class="t" x="644" y="462" font-size="12">diagnosis · medication</text>
+  <text class="t" x="644" y="480" font-size="12">false certainty · dependence</text>
+  <text class="t" x="644" y="497" font-size="12">invented hotlines · register</text>
+
+  <!-- Knowledge -->
+  <rect class="box" x="900" y="296" width="168" height="122" rx="10"/>
+  <text class="h" x="918" y="322" font-size="14">Knowledge base</text>
+  <text class="t" x="918" y="344" font-size="12">BM25 word</text>
+  <text class="t" x="918" y="362" font-size="12">+ BM25 trigram</text>
+  <text class="t" x="918" y="380" font-size="12">→ RRF(60) → MMR</text>
+  <text class="q" x="918" y="402" font-size="11">AES-256-GCM at rest</text>
+
+  <!-- Storage -->
+  <rect class="box" x="900" y="440" width="168" height="72" rx="10"/>
+  <text class="h" x="918" y="466" font-size="14">SQLite</text>
+  <text class="t" x="918" y="486" font-size="12">journal · messages</text>
+  <text class="t" x="918" y="503" font-size="12">audit (metadata only)</text>
+
+  <!-- arrows -->
+  <path class="line" d="M312 373 L352 373" marker-end="url(#arrow)"/>
+  <text class="q" x="316" y="364" font-size="11">turn</text>
+
+  <path class="line" d="M560 320 L624 320" marker-end="url(#arrow)"/>
+  <text class="q" x="566" y="311" font-size="11">no signal</text>
+
+  <path class="lineRed" d="M456 370 L456 418" marker-end="url(#arrowRed)"/>
+  <text class="q" x="466" y="396" font-size="11" fill="#8f3323">imminent</text>
+
+  <path class="line" d="M808 345 L900 345" marker-end="url(#arrow)"/>
+  <text class="q" x="820" y="336" font-size="11">cited passages</text>
+
+  <path class="line" d="M858 390 L858 418" marker-end="url(#arrow)"/>
+  <text class="q" x="868" y="408" font-size="11">text</text>
+
+  <path class="line" d="M624 461 L560 461" marker-end="url(#arrow)"/>
+  <text class="q" x="566" y="452" font-size="11">guarded</text>
+
+  <path class="line" d="M312 433 L352 433" marker-end="url(#arrow)"/>
+  <text class="q" x="316" y="424" font-size="11">answer</text>
+
+  <path class="line" d="M186 312 L186 196" marker-end="url(#arrow)"/>
+  <text class="q" x="196" y="268" font-size="11">SSE</text>
+
+  <text class="q" x="46" y="592" font-size="12">The model proposes, deterministic code disposes. No prompt is the only thing between a person and a wrong hotline number.</text>
+</svg>

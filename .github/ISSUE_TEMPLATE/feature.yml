@@ -1,0 +1,60 @@
+name: Feature request
+description: Propose a capability, a model, a benchmark or a UI change.
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project has a binding rule: **no fabricated capability**. A feature is not
+        "done" because it renders — it is done when the real path works and has a test.
+        Proposals that skip that are declined, kindly.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Inference / runtime
+        - Retrieval / knowledge base
+        - Safety layer
+        - Evaluation and statistics
+        - Training and model lab
+        - Product UI
+        - Packaging / installer
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is actually wrong for a user today? Not "add feature X" — what breaks without it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What would you change, where, and what would prove it works?
+    validations:
+      required: true
+
+  - type: textarea
+    id: licences
+    attributes:
+      label: Licence chain
+      description: |
+        Required if this adds a model, dataset, tokenizer, encoder or code dependency.
+        Exact revision, licence, and whether redistribution is permitted.
+    validations:
+      required: false
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: How this should be verified
+      description: The test or measurement that would show it works, and the number that would show it works *well enough*.
+    validations:
+      required: true

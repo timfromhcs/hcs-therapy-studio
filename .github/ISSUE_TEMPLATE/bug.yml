@@ -1,0 +1,63 @@
+name: Bug report
+description: Something behaves incorrectly. Do not include personal journal content, prompts or crisis text.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste private content.** No journal entries, no conversation text, no
+        uploaded documents, no API tokens. A bug report that leaks a user's notes is a
+        worse bug than the one being reported.
+
+        Safety issues (a missed crisis signal, an invented hotline, medication advice)
+        go to the security process in `SECURITY.md`, not here.
+
+  - type: checkboxes
+    id: sanity
+    attributes:
+      label: Before reporting
+      options:
+        - label: I ran `hcs-therapy doctor --json` and the output is attached with paths redacted.
+          required: true
+        - label: I checked `status.md` to see whether this is already a known limitation.
+          required: true
+        - label: This report contains no personal content, prompts or tokens.
+          required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: One paragraph. What did you expect, what did you get?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: |
+        The exact commands, in order. If it is a UI bug, include the screen and viewport
+        width. If it is a model bug, include the model id and quantisation.
+      placeholder: |
+        1. hcs-therapy serve --port 8765 --start-backend
+        2. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version and commit
+      description: Output of `hcs-therapy --version` and `git rev-parse --short HEAD`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted output
+      description: Paste only the failing command's stderr with paths and tokens removed.
+      render: text
+    validations:
+      required: false

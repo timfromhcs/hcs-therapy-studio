@@ -6,6 +6,9 @@ Contract: [`AGENTS.md`](AGENTS.md). Research basis: [`RESEARCH-AND-ROADMAP.md`](
 Only one milestone is "active" at a time. A milestone is done when its gate
 report in [`status.md`](status.md) cites executed commands and their output.
 
+The long-horizon execution plan for the 2026-11-04 run — including the research
+it is based on — is [`LONG-HORIZON-PLAN.md`](LONG-HORIZON-PLAN.md).
+
 ---
 
 ## M0 — Repository and research freeze (done)
@@ -32,10 +35,13 @@ Done: pinned `llama-server` b12102 (hash recorded), installed
 
 Remaining: time-to-first-token measurement on the streaming path.
 
-## M2 — Evaluation harness (partially done)
+## M2 — Evaluation harness (done for the local suite)
 
-Done: deterministic local suite, per-dimension report, A/B regression compare,
-honest refusal to fake external benchmarks.
+Done: deterministic local suite, per-dimension report with bootstrap confidence
+intervals, paired bootstrap significance in `eval compare`, Bradley–Terry
+ranking across reports (`eval rank`), calibration measurement with temperature
+scaling (`eval calibrate`), report schema v2, and an honest refusal to fake
+external benchmarks.
 
 Remaining: adapters for authorised external suites (MentalHealthBench,
 CBT-Bench evaluation-only, HealthBench) that fail loudly when credentials or
@@ -61,10 +67,13 @@ machine and stays refused until memory allows it.
 
 ## M5 — Safety and product behaviour (done for the deterministic layers)
 
-Done: crisis gate, verified resources, output guard, boundary prompt, tests.
+Done: crisis gate, verified resources, output guard, boundary prompt, tests, **multi-turn
+trajectories with a session-level attentiveness window**, German register anchoring with an
+A/B measurement.
 
-Remaining: professional review of prompts and templates; a German-speaking
-reviewer for tone.
+Remaining: professional review of prompts and templates; a German-speaking reviewer for tone.
+Whether the model *behaves* gently during an attentive turn needs the model in the loop and has
+not been measured.
 
 ## M6 — Agent and MCP layer (done)
 
@@ -81,13 +90,40 @@ candidates.
 
 Remaining: prove a VLM export/runtime on this device; build the editor UI.
 
-## M8 — Product UI (static client done)
+## M8 — Product UI (done, streaming)
 
 Done: React/Vite client, 8 screens, DE/EN strings, Loam design system, wired to
-the real local API, browser-verified at 375px and 1440px.
+the real local API; SSE streaming with measured first-token latency in the
+footer, stop/copy/regenerate, safe markdown-lite renderer, command palette
+(`Ctrl/⌘+K`), skip link, retrieval playground in the Lab screen, product
+title/favicon/CSP instead of the Vite scaffold. Browser-verified at 375, 768 and
+1440 px: zero console errors, zero horizontal overflow.
 
-Remaining: Tauri shell, automated visual regression, accessibility audit with a
-screen reader, and the Better Design review tools (blocked by account quota).
+Remaining: Tauri shell, automated visual regression, a screen-reader pass, and
+the Better Design review tools (still blocked by account quota — the evidence is
+rendered-browser measurement, not a tool receipt).
+
+## M7b — Retrieval (done for the lexical layer)
+
+Done: encrypted knowledge index, paragraph/sentence chunking with overlap,
+BM25 over words plus BM25 over character trigrams, RRF fusion, MMR
+diversification, citation ids, hallucinated-citation detection, CLI
+(`kb index|search|stats`), API routes, Lab-screen playground, and the MCP tool
+switched from a substring scan to the real index.
+
+Remaining: an embedding model with a cleared licence, to make the retrieval
+genuinely hybrid rather than lexical-only. The RRF plumbing already accepts a
+third ranking list, so this is a drop-in when a licensed model exists.
+
+## M8b — Numerics library (done)
+
+Done: `hcs_therapy.numerics` with 216 tests, every formula anchored to an
+analytically known value: BM25, RRF, MMR, trigram tokenisation, samplers
+(top-k/top-p/min-p/typical/penalties/DRY), perplexity, ECE/Brier/NLL,
+temperature and Platt scaling, split conformal prediction, Bradley–Terry, Elo,
+bootstrap intervals and paired tests, κ statistics, MRR/NDCG/pass@k, GGUF block
+arithmetic, KV-cache bytes, LoRA parameter counts, SLERP, TIES, DARE, and the
+DPO/IPO/ORPO/SimPO/CPO losses with a GRPO advantage.
 
 ## M9 — Browser/Vercel edition (not started)
 

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="HCS Therapy Studio">
+  <!--
+    HCS Therapy Studio mark.
+
+    Three widening arcs describe one slow breath; the solid dot is the moment of
+    attention before it. Authored here as plain vector geometry, so the mark is
+    covered by the project licence and no third-party artwork is bundled.
+  -->
+  <title>HCS Therapy Studio</title>
+  <defs>
+    <linearGradient id="loam" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f4f3e"/>
+      <stop offset="55%" stop-color="#3f6b52"/>
+      <stop offset="100%" stop-color="#7fa88b"/>
+    </linearGradient>
+    <linearGradient id="breath" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#e8f1ea" stop-opacity="0.72"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="128" height="128" rx="28" fill="url(#loam)"/>
+
+  <g fill="none" stroke="url(#breath)" stroke-linecap="round">
+    <path d="M30 88 A34 34 0 0 1 98 88" stroke-width="5" opacity="0.45"/>
+    <path d="M40 88 A24 24 0 0 1 88 88" stroke-width="5" opacity="0.7"/>
+    <path d="M50 88 A14 14 0 0 1 78 88" stroke-width="5" opacity="0.95"/>
+  </g>
+
+  <circle cx="64" cy="88" r="4.5" fill="#f3f8f4"/>
+</svg>
