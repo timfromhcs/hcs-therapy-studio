@@ -35,6 +35,38 @@ def _run(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
 pytestmark = pytest.mark.skipif(NPM is None, reason="npm is not on PATH")
 
 
+def _tsc_present() -> bool:
+    return any((SDK / "node_modules" / ".bin" / name).exists() for name in ("tsc", "tsc.cmd"))
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _installed_toolchain() -> None:
+    """Install the dev dependency in a fresh checkout.
+
+    The first CI runs failed with "'tsc' is not recognized", because the test
+    assumed the local `node_modules` that only exists after someone ran
+    `npm install` here. A test that passes only on the machine that wrote it is
+    not a test, so the install is part of the fixture and the failure message
+    says what the directory actually contains.
+    """
+    if _tsc_present():
+        return
+    result = _run(NPM, "ci", "--no-audit", "--no-fund", cwd=SDK)
+    if _tsc_present():
+        return
+    modules = SDK / "node_modules"
+    listing = sorted(p.name for p in modules.iterdir())[:30] if modules.is_dir() else []
+    bin_dir = modules / ".bin"
+    bin_listing = sorted(p.name for p in bin_dir.iterdir())[:30] if bin_dir.is_dir() else []
+    raise AssertionError(
+        f"npm ci returned {result.returncode} and still produced no tsc\n"
+        f"node_modules={listing}\n"
+        f".bin={bin_listing}\n"
+        f"stdout={result.stdout[-800:]}\n"
+        f"stderr={result.stderr[-800:]}"
+    )
+
+
 def test_package_manifest_is_a_publishable_esm_package() -> None:
     manifest = json.loads((SDK / "package.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "@hcsmedia/therapy-sdk"
